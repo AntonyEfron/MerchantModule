@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { getBaseProductById, addVariant } from "../../../api/products";
+import { getBaseProductById, addVariant, updateVariant} from "../../../api/products";
 import DynamicSizesInput from "../../utils/DynamicSizesInput";
 import CropperModal from "../../utils/CropperModal";
 import "./AddVariant.css";
@@ -24,7 +24,21 @@ const AddVariant = ({ createdProductId }) => {
   const [showCropper, setShowCropper] = useState(false);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(null);
         // console.log(variantForm,'variantForm');
-
+const fetchProduct = async () => {
+  try {
+    const res = await getBaseProductById(productId);
+    setProduct(res);
+    if (res.variants?.length) {
+      setSelectedVariantIndex(0);
+      setVariantForm(res.variants[0]);
+    } else {
+      setSelectedVariantIndex(null);
+      setVariantForm(getEmptyVariantForm());
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
   
 
   const setSizes = useCallback((updatedSizes) => {
@@ -32,21 +46,6 @@ const AddVariant = ({ createdProductId }) => {
   }, []);
 
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const res = await getBaseProductById(productId);
-        setProduct(res);
-        if (res.variants?.length) {
-          setSelectedVariantIndex(0);
-          setVariantForm(res.variants[0]);
-        } else {
-          setSelectedVariantIndex(null);
-          setVariantForm(getEmptyVariantForm());
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
     fetchProduct();
   }, [productId]);
 
@@ -120,49 +119,44 @@ const AddVariant = ({ createdProductId }) => {
     });
   };
 
-const handleSubmit = async (e) => { 
+const handleSubmit = async (e) => {
   e.preventDefault();
 
   try {
-    console.log("📦 Submitting Variant Form State:", JSON.stringify(variantForm, null, 2));
-
     const formData = new FormData();
-    
-    // ✅ match backend expectations
     formData.append("color", JSON.stringify(variantForm.color));
     formData.append("sizes", JSON.stringify(variantForm.sizes));
     formData.append("mrp", Number(variantForm.mrp));
     formData.append("price", Number(variantForm.price));
     formData.append("discount", Number(variantForm.discount));
 
-    // Append images array
-    variantForm.images.forEach((imgObj, idx) => {
+    variantForm.images.forEach((imgObj) => {
       if (imgObj.file instanceof Blob) {
-        console.log(`📂 Adding image ${idx + 1}:`, imgObj.file.name || "(blob)");
         formData.append("images", imgObj.file);
-      } else {
-        console.warn(`⚠️ Invalid image file at index ${idx}`, imgObj);
       }
     });
 
-    // If main image is separate, append it too
-    if (variantForm.mainImage?.file instanceof Blob) {
-      console.log("🌟 Adding main image:", variantForm.mainImage.file.name || "(blob)");
-      formData.append("images", variantForm.mainImage.file); // still goes under 'images'
+    if (selectedVariantIndex !== null) {
+      // ✅ UPDATE existing variant
+      const variantId = product.variants[selectedVariantIndex]._id;
+      await updateVariant(product._id, variantId, formData);
+      alert("✅ Variant updated successfully!");
+    } else {
+      // ✅ ADD new variant
+      await addVariant(product._id, formData);
+      alert("✅ Variant added successfully!");
     }
 
-    await addVariant(product._id, formData);
-
-    alert("✅ Variant added successfully!");
-    setVariantForm(getEmptyVariantForm());
+    await fetchProduct();
     setPreviewQueue([]);
     setShowCropper(false);
 
   } catch (err) {
-    console.error("❌ Error while submitting variant:", err);
-    alert("Failed to add variant.");
+    console.error(err);
+    alert("❌ Failed to save variant.");
   }
 };
+
 
 
   if (!product) return <div className="loading">Loading...</div>;
@@ -271,7 +265,7 @@ const handleSubmit = async (e) => {
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
           {/* Color Section */}
-          <div className="form-group">
+          {/* <div className="form-group">
             <label className="form-label">Color Information</label>
             <div className="color-inputs">
               <input
@@ -283,7 +277,39 @@ const handleSubmit = async (e) => {
                 title="Select color"
               />
             </div>
-          </div>
+          </div> */}
+          <div className="form-group">
+  <label className="form-label">Color Information</label>
+  <div className="color-inputs" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+    {/* Color name input */}
+    <input
+      type="text"
+      name="name"
+      value={variantForm.color.name}
+      onChange={(e) =>
+        setVariantForm({
+          ...variantForm,
+          color: { ...variantForm.color, name: e.target.value },
+        })
+      }
+      placeholder="Color Name"
+      className="color-name-input"
+      style={{ flex: 1 }}
+    />
+
+    {/* Color picker */}
+    <input
+      type="color"
+      name="hex"
+      value={variantForm.color.hex}
+      onChange={handleColorChange}
+      className="color-preview"
+      title="Select color"
+      style={{ width: "50px", height: "40px", padding: 0, border: "none" }}
+    />
+  </div>
+</div>
+
 
           {/* Dynamic Sizes Input */}
           <DynamicSizesInput sizes={variantForm.sizes} setSizes={setSizes} />

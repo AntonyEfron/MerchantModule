@@ -29,7 +29,7 @@ export const addBaseProduct = async (productData) => {
 export const getBaseProducts = async () => {
     try {
         const response = await axiosInstance.get('merchant/getBaseProducts');
-        return response.data;
+        return response.data;zz
     } catch (error) {
         console.log(error)
         throw error.response ? error.response.data : new Error('Network Error');
@@ -138,6 +138,18 @@ export const addVariant = async (productId, formData) => {
   }
 };
 
+export const updateVariant = async (productId, variantId, formData) => {
+  try {
+    const res = await axiosInstance.put(
+      `merchant/updateVariant/${productId}/${variantId}`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Update failed");
+  }
+};
 
 
 

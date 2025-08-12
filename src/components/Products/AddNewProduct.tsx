@@ -32,12 +32,8 @@ const AddNewProduct = () => {
   const [showFeatureForm, setShowFeatureForm] = useState(false);
   const [brands, setBrands] = useState([]);
   const [brandsLoading, setBrandsLoading] = useState(false);
-  const [createdProductId, setCreatedProductId] = useState(() =>
-    localStorage.getItem('createdProductId') || null
-  );
-  const [AddVariants, setAddVariant] = useState(() =>
-    localStorage.getItem('showAddVariant') === 'true'
-  );
+const [createdProductId, setCreatedProductId] = useState(null);
+const [showAddVariant, setShowAddVariant] = useState(false); // renamed for clarity
 
   useEffect(() => {
     if (!merchant?.id) return; // Wait until merchant is loaded
@@ -123,6 +119,7 @@ const AddNewProduct = () => {
     });
   };
 
+
 const handleSubmit = async (e) => {
   e.preventDefault();
   setLoading(true);
@@ -130,22 +127,24 @@ const handleSubmit = async (e) => {
   try {
     const payload = {
       ...formData,
-      tags: formData.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
     };
     const response = await addBaseProduct(payload);
 
-        if (response && response.product) {
-          setCreatedProductId(response.product._id);
-          setAddVariant(true);
-          // Store these in localStorage as strings
-          localStorage.setItem('createdProductId', response.product._id);
-          localStorage.setItem('showAddVariant', 'true');
-        }
+    console.log(response.product,'response.product');
+    
+
+    if (response && response.product) {
+      setCreatedProductId(response.product._id);
+      setShowAddVariant(true); // ✅ Only here we enable AddVariant
+    }
+
     setMessage('Product created successfully!');
     setMessageType('success');
+
     setFormData({
       name: '',
-      brandId: merchant?.id || '',
+      brandId: '',
       categoryId: '',
       subCategoryId: '',
       subSubCategoryId: '',
@@ -164,6 +163,7 @@ const handleSubmit = async (e) => {
     setLoading(false);
   }
 };
+
 
 
 
@@ -534,11 +534,11 @@ const handleSubmit = async (e) => {
       </div>
     </div>
 
-              {AddVariants && (
-            <div style={{ marginTop: "2rem" }}>
-              <AddVariant createdProductId={createdProductId} />
-            </div>
-          )}
+    {showAddVariant && (
+      <div style={{ marginTop: "2rem" }}>
+        <AddVariant createdProductId={createdProductId} />
+      </div>
+    )}
 
           {/* <AddBrandPage/> */}
           </>

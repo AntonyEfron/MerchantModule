@@ -1,4 +1,4 @@
-// AppRoot.tsx
+// App.tsx - Updated version
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -8,6 +8,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './components/Order/NotificationContext';
 
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';
@@ -15,12 +16,8 @@ import Sidebar from './components/Sidebar';
 import ProductPage from '../src/components/ProductPage/ProductPage';
 import Orders from './Pages/Order';
 import Accounts from './Pages/Accounts';
-
-// Private Route
-// function PrivateRoute({ children }: { children: JSX.Element }) {
-//   const { token } = useAuth();
-//   return token ? children : <Navigate to="/merchant/login" replace />;
-// }
+import RingNotification from './components/Order/RingNotification';
+import OrderManagement from './components/Order/OrderManagement';
 
 // Layout
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -40,8 +37,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     width: `calc(100% - ${token ? (sidebarOpen ? 260 : 80) : 0}px)`,
   };
 
-  // if (isPublicPage) return <>{children}</>;
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
       {token && (
@@ -50,80 +45,38 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           onToggle={(isOpen) => setSidebarOpen(isOpen)}
         />
       )}
-      <div style={mainContentStyle}>{children}</div>
+      <div style={mainContentStyle}>
+        {children}
+        <RingNotification />
+      </div>
     </div>
   );
 }
 
-// Root with AuthProvider
-// function AppRoot() {
-//   return (
-//     <AuthProvider>
-//       <Router>
-//         <AppLayout>
-//           <Routes>
-//             {/* Public */}
-//             <Route path="/merchant/login" element={<Login />} />
-//             <Route path="/merchant/register" element={<Register />} />
-//             {/* Private */}
-//             <Route
-//               path="/merchant/add-product"
-//               element={
-//                 <PrivateRoute>
-         
-//                   <Products />
-//                 </PrivateRoute>
-            
-//               }
-//             />
-//             <Route
-//               path="/merchant/orders"
-//               element={
-//                 <PrivateRoute>
-//                   <Orders />
-//                 </PrivateRoute>
-//               }
-//             />
-//             <Route
-//               path="/merchant/accounts"
-//               element={
-//                 <PrivateRoute>
-//                   <Accounts />
-//                 </PrivateRoute>
-//               }
-//             />
-//             {/* Default */}
-//             <Route path="/" element={<Navigate to="/merchant/add-product" />} />
-//           </Routes>
-//         </AppLayout>
-//       </Router>
-//     </AuthProvider>
-//   );
-// }
-
 function AppRoot() {
   return (
     <AuthProvider>
-      <Router>
-        <AppLayout>
-          <Routes>
-            {/* Public */}
-            <Route path="/merchant/login" element={<Login />} />
-            <Route path="/merchant/register" element={<Register />} />
+      <NotificationProvider>
+        <Router>
+          <AppLayout>
+            <Routes>
+              {/* Public */}
+              <Route path="/merchant/login" element={<Login />} />
+              <Route path="/merchant/register" element={<Register />} />
 
-            {/* Now all pages accessible */}
-            <Route path="/merchant/add-product" element={<ProductPage />} />
-            <Route path="/merchant/orders" element={<Orders />} />
-            <Route path="/merchant/accounts" element={<Accounts />} />
+              {/* Now all pages accessible */}
+              <Route path="/merchant/add-product" element={<ProductPage />} />
+              <Route path="/merchant/orders" element={<OrderManagement />} />
+              <Route path="/merchant/accounts" element={<Accounts />} />
 
-            {/* Default */}
-            <Route path="/" element={<Navigate to="/merchant/add-product" />} />
-          </Routes>
-        </AppLayout>
-      </Router>
+              {/* Default */}
+              <Route path="/" element={<Navigate to="/merchant/add-product" />} />
+            </Routes>
+          </AppLayout>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }
-
 
 export default AppRoot;

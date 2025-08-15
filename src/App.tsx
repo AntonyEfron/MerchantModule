@@ -12,7 +12,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';
 import Sidebar from './components/Sidebar';
-import Products from './components/Products/AddNewProduct';
+import ProductPage from '../src/components/ProductPage/ProductPage';
 import Orders from './Pages/Order';
 import Accounts from './Pages/Accounts';
 
@@ -112,7 +112,7 @@ function AppRoot() {
             <Route path="/merchant/register" element={<Register />} />
 
             {/* Now all pages accessible */}
-            <Route path="/merchant/add-product" element={<Products />} />
+            <Route path="/merchant/add-product" element={<ProductPage />} />
             <Route path="/merchant/orders" element={<Orders />} />
             <Route path="/merchant/accounts" element={<Accounts />} />
 

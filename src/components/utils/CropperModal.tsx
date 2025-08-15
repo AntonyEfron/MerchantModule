@@ -3,23 +3,33 @@ import React, { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 import { getCroppedImg } from "./croping/cropImage";
 import Modal from "./Modal";
-import "./CropperModal.css"; // <-- IMPORT YOUR NEW CSS FILE
+import "./CropperModal.css";
 
 const CropperModal = ({ imageSrc, onClose, onCropComplete }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [aspect, setAspect] = useState(1);
+  // Fixed aspect ratio to 9:16 (portrait)
+  const [aspect, setAspect] = useState(9 / 16); // This equals 0.5625
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleCropComplete = useCallback((_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
   const handleDone = async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
-    const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
-    onCropComplete(croppedBlob);
-    onClose();
+    if (!imageSrc || !croppedAreaPixels || isProcessing) return;
+    
+    setIsProcessing(true);
+    try {
+      const croppedBlob = await getCroppedImg(imageSrc, croppedAreaPixels);
+      onCropComplete(croppedBlob);
+    } catch (error) {
+      console.error('Error cropping image:', error);
+      alert('Error cropping image. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -34,27 +44,23 @@ const CropperModal = ({ imageSrc, onClose, onCropComplete }) => {
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={handleCropComplete}
+            showGrid={true}
           />
         </div>
         <div className="controls-container">
-          <div className="aspect-ratio-label-group">
-            <label className="aspect-ratio-label">Aspect Ratio:</label>
-            <select
-              value={aspect}
-              onChange={e => setAspect(Number(e.target.value))}
-              className="aspect-ratio-select"
-            >
-              <option value="1">1:1 (Square)</option>
-              <option value="1.3333">4:3</option>
-              <option value="1.7778">16:9</option>
-              <option value="0.75">3:4 (Portrait)</option>
-            </select>
-          </div>
-          <button onClick={onClose} className="button button-cancel">
+          <button 
+            onClick={onClose} 
+            className="button button-cancel"
+            disabled={isProcessing}
+          >
             Cancel
           </button>
-          <button onClick={handleDone} className="button button-crop">
-            Crop
+          <button 
+            onClick={handleDone} 
+            className="button button-crop"
+            disabled={isProcessing || !croppedAreaPixels}
+          >
+            {isProcessing ? 'Processing...' : 'Crop'}
           </button>
         </div>
       </div>

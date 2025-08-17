@@ -26,20 +26,15 @@ export const addBaseProduct = async (productData) => {
       }
 };
 
-export const getBaseProducts = async () => {
-    try {
-        const response = await axiosInstance.get('merchant/getBaseProducts');
-        return response.data;zz
-    } catch (error) {
-        console.log(error)
-        throw error.response ? error.response.data : new Error('Network Error');
-    }
-}
-
-
-
-
-  
+// export const getBaseProducts = async () => {
+//     try {
+//         const response = await axiosInstance.get('merchant/getBaseProducts');
+//         return response.data;
+//     } catch (error) {
+//         console.log(error)
+//         throw error.response ? error.response.data : new Error('Network Error');
+//     }
+// }
 
 export const getCategories = async () => {
   try {
@@ -70,9 +65,6 @@ export interface AddBrandResponse {
   };
 }
 
-/**
- * Sends a brand creation request including file upload (logo).
- */
 export const addBrand = async (
   brand: BrandPayload
 ): Promise<AddBrandResponse> => {
@@ -109,7 +101,6 @@ export const getBrands = async (merchantId) => {
     throw error;
   }
 };
-
 
 export const addVariant = async (productId, formData) => {
   try {
@@ -151,12 +142,7 @@ export const updateVariant = async (productId, variantId, formData) => {
   }
 };
 
-
-
-  
 export const getBaseProductById = async (productId) => {
-  // console.log(productId,'productIdproductIdproductId');
-  
     try {
         const response = await axiosInstance.get(`merchant/getBaseProductById/${productId}`);
         return response.data;
@@ -165,6 +151,54 @@ export const getBaseProductById = async (productId) => {
         throw error.response ? error.response.data : new Error('Network Error');
     }
 }
+
+export const fetchProductsByMerchantId = async (merchantId) => {
+  try {
+    const res = await axiosInstance.get(
+      `merchant/fetchProductsByMerchantId/${merchantId}`
+    );
+    console.log("Fetched products:", res.data); // ✅ actual data
+    return res.data;  // axios automatically parses JSON
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return [];
+  }
+};
+
+export const uploadImage = async (file, productId, variantIndex) => {
+  const formData = new FormData();
+  formData.append("images", file);          // must match multer field
+  formData.append("productId", productId);
+  formData.append("variantIndex", variantIndex);
+
+  console.log("📤 Uploading file:", file.name, file.type, file.size);
+
+  try {
+    const response = await axiosInstance.post(
+      "/merchant/upload/image",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data; // axios already parses JSON
+  } catch (error) {
+    console.error("❌ Upload failed:", error.response?.data || error.message);
+    throw new Error(
+      error.response?.data?.message || "Failed to upload image"
+    );
+  }
+};
+
+export const deleteImage = async (imageId) => {
+  const { data } = await axiosInstance.delete(`merchant/deleteImage/${imageId}`);
+  return data;
+};
+
+
 
 
 

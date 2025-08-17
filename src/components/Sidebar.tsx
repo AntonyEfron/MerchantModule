@@ -273,7 +273,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, onToggle }) => {
   };
 
   const navItems = [
-    { path: "add-product", icon: "📦", label: "Products" },
+    { path: "products", icon: "📦", label: "Products" },
     { path: "orders", icon: "📋", label: "Orders" },
     { path: "accounts", icon: "👥", label: "Accounts" },
   ];

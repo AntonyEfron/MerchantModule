@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import VariantItem from './VariantItem';
 import './styles/VariantsList.css';
 
-const VariantsList = ({ variants, productId, onVariantUpdate }) => {
+const VariantsList = ({ variants, productId, onVariantUpdate, onImageUpload, onRemoveImage}) => {
   const [expandedVariants, setExpandedVariants] = useState({});
 
   const toggleVariantExpansion = (variantIndex) => {
@@ -32,80 +32,30 @@ const VariantsList = ({ variants, productId, onVariantUpdate }) => {
     onVariantUpdate(updatedVariants);
   };
 
-  // Fixed image upload handler
-  const handleImageUpload = async (variantIndex, event) => {
-    const files = Array.from(event.target.files);
-    
-    if (files.length === 0) return;
-
-    const updatedVariants = [...variants];
-    const currentImages = updatedVariants[variantIndex].images || [];
-    const availableSlots = 5 - currentImages.length;
-    
-    if (availableSlots <= 0) {
-      alert('Maximum 5 images allowed per variant');
-      return;
-    }
-
-    // Process files and create image objects
-    const newImagePromises = files.slice(0, availableSlots).map((file) => {
-      return new Promise((resolve, reject) => {
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-          reject(new Error(`${file.name} is not a valid image file`));
-          return;
-        }
-
-        // Validate file size (limit to 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          reject(new Error(`${file.name} is too large. Maximum size is 5MB`));
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          resolve({
-            url: e.target.result, // Base64 data URL
-            file: file,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            id: Date.now() + Math.random() // Unique ID for the image
-          });
-        };
-        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-        reader.readAsDataURL(file);
-      });
-    });
-
-    try {
-      const newImages = await Promise.all(newImagePromises);
-      updatedVariants[variantIndex].images = [...currentImages, ...newImages];
+  // ✅ Updated to handle the full images array from API response
+    const handleImageUpload = (variantIndex, uploadedImages) => {
+      const updatedVariants = variants.map((variant, index) =>
+        index === variantIndex
+          ? { ...variant, images: uploadedImages } // ✅ use directly
+          : variant
+      );
       onVariantUpdate(updatedVariants);
-      
-      // Clear the input
-      event.target.value = '';
-      
-      console.log(`Successfully uploaded ${newImages.length} image(s)`);
-    } catch (error) {
-      console.error('Error uploading images:', error);
-      alert(`Error uploading image: ${error.message}`);
-      
-      // Clear the input even on error
-      event.target.value = '';
-    }
-  };
+    };
 
+  // ✅ Fixed remove image handler
   const removeImage = (variantIndex, imageIndex) => {
     const updatedVariants = [...variants];
     const imageToRemove = updatedVariants[variantIndex].images[imageIndex];
-    
+
     // If it was a blob URL, revoke it to free memory
-    if (imageToRemove.url && imageToRemove.url.startsWith('blob:')) {
+    if (imageToRemove?.url && imageToRemove.url.startsWith('blob:')) {
       URL.revokeObjectURL(imageToRemove.url);
     }
-    
-    updatedVariants[variantIndex].images = updatedVariants[variantIndex].images.filter((_, index) => index !== imageIndex);
+
+    // Remove the image from the array
+    updatedVariants[variantIndex].images = 
+      updatedVariants[variantIndex].images.filter((_, index) => index !== imageIndex);
+
     onVariantUpdate(updatedVariants);
   };
 
@@ -113,7 +63,7 @@ const VariantsList = ({ variants, productId, onVariantUpdate }) => {
     <div className="variants-container">
       {variants.map((variant, variantIndex) => (
         <VariantItem
-          key={variantIndex}
+          key={`${productId}-variant-${variantIndex}-${variant.color || variantIndex}`}
           variant={variant}
           variantIndex={variantIndex}
           productId={productId}
@@ -121,8 +71,8 @@ const VariantsList = ({ variants, productId, onVariantUpdate }) => {
           onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
           onDelete={() => deleteVariant(variantIndex)}
           onUpdateStock={updateStock}
-          onImageUpload={handleImageUpload}
-          onRemoveImage={removeImage}
+          onImageUpload={onImageUpload}
+          onRemoveImage={onRemoveImage}
         />
       ))}
     </div>

@@ -3,15 +3,14 @@ import React from 'react';
 import { Edit3, Trash2 } from 'lucide-react';
 import './styles/ProductHeader.css';
 
-
 const ProductHeader = ({ 
-  product, 
-  index, 
-  isEditing, 
-  tempData, 
-  totalStock, 
-  onEdit, 
-  onDelete, 
+  product,
+  index,
+  isEditing,
+  tempData,
+  totalStock,
+  onEdit,
+  onDelete,
   onUpdateTempData 
 }) => {
   return (

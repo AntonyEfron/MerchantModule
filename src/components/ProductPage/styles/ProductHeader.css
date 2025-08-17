@@ -1,10 +1,9 @@
-/* components/ProductPage/ProductHeader.css */
+/* components/ProductPage/styles/ProductHeader.css */
 
 .product-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
 }
 
 .action-buttons {
@@ -16,6 +15,7 @@
   display: flex;
   gap: 1rem;
   flex: 1;
+  margin-bottom: 0 !important;
 }
 
 .product-number {
@@ -174,7 +174,7 @@
   color: #14532d;
 }
 
-/* Responsive Design for ProductHeader */
+/* Responsive Design */
 @media (max-width: 768px) {
   .product-header {
     flex-direction: column;

@@ -7,35 +7,35 @@ import VariantsList from './VariantsList';
 import AddVariantSection from './AddVariantSection';
 import './styles/ProductItem.css';
 
-const ProductItem = ({ product, index, products, updateProducts, onDelete }) => {
+const ProductItem = ({ product, index,  updateProducts, onDelete, onImageUpload , onRemoveImage}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempProductData, setTempProductData] = useState({});
   const [addingVariant, setAddingVariant] = useState(false);
   const [showVariants, setShowVariants] = useState(false); // New state for showing variants
 
-  const toggleProductEdit = () => {
-    if (isEditing) {
-      if (tempProductData && Object.keys(tempProductData).length > 0) {
-        const updatedProducts = products.map(p => {
-          if (p.id === product.id) {
-            return { ...p, ...tempProductData };
-          }
-          return p;
-        });
-        updateProducts(updatedProducts);
-      }
-      setIsEditing(false);
-      setTempProductData({});
-    } else {
-      setTempProductData({
-        name: product.name,
-        category: product.category,
-        brand: product.brand,
-        description: product.description
-      });
-      setIsEditing(true);
+const toggleProductEdit = () => {
+  if (isEditing) {
+    if (tempProductData && Object.keys(tempProductData).length > 0) {
+      const updatedProduct = { ...product, ...tempProductData };
+      updateProducts(updatedProduct);  // ✅ just send updated product
     }
-  };
+    setIsEditing(false);
+    setTempProductData({});
+  } else {
+    setTempProductData({
+      name: product.name,
+      category: product.category,
+      brand: product.brand,
+      description: product.description
+    });
+    setIsEditing(true);
+  }
+};
+
+const handleVariantUpdate = (updatedVariants) => {
+  const updatedProduct = { ...product, variants: updatedVariants };
+  updateProducts(updatedProduct);  // ✅ just send updated product
+};
 
   const updateTempProductData = (field, value) => {
     setTempProductData(prev => ({
@@ -48,16 +48,6 @@ const ProductItem = ({ product, index, products, updateProducts, onDelete }) => 
     return variants.reduce((total, variant) => 
       total + variant.sizes.reduce((variantTotal, size) => variantTotal + size.stock, 0), 0
     );
-  };
-
-  const handleVariantUpdate = (updatedVariants) => {
-    const updatedProducts = products.map(p => {
-      if (p.id === product.id) {
-        return { ...p, variants: updatedVariants };
-      }
-      return p;
-    });
-    updateProducts(updatedProducts);
   };
 
   const toggleShowVariants = () => {
@@ -93,6 +83,8 @@ const ProductItem = ({ product, index, products, updateProducts, onDelete }) => 
           variants={product.variants}
           productId={product.id}
           onVariantUpdate={handleVariantUpdate}
+          onImageUpload={onImageUpload}
+          onRemoveImage={onRemoveImage}
         />
       )}
 
@@ -105,6 +97,8 @@ const ProductItem = ({ product, index, products, updateProducts, onDelete }) => 
         onVariantUpdate={handleVariantUpdate}
         showVariants={showVariants}
         onToggleShowVariants={toggleShowVariants}
+        onImageUpload={onImageUpload}
+        onRemoveImage={onRemoveImage}
       />
     </div> 
   );

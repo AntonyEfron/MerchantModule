@@ -25,7 +25,7 @@ const Login: React.FC = () => {
       login(merchant, token);
 
       // After login and context update, navigate
-      navigate('/merchant/add-product');
+      navigate('/merchant/products');
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Login failed');
     } finally {

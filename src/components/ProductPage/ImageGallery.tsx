@@ -1,6 +1,7 @@
 // components/ProductPage/ImageGallery.jsx
 import React, { useState } from 'react';
 import { X, Upload, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import {deleteImage  } from "../../api/products";
 import CropperModal from '../../components/utils/CropperModal'; // Adjust path as needed
 import './styles/ImageGallery.css';
 
@@ -16,6 +17,26 @@ const ImageGallery = ({
   const [imageToCrop, setImageToCrop] = useState(null);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+
+const handleRemoveImageClick = async (imageIndex) => {
+  try {
+    const imageToDelete = images[imageIndex];
+    if (!imageToDelete?._id) return;
+
+    await deleteImage(imageToDelete._id);
+
+    // Pass productId, variantIndex, and imageIndex to parent
+    if (onRemoveImage) {
+      onRemoveImage(productId, variantIndex, imageIndex);
+    }
+
+  } catch (error) {
+    console.error("Failed to delete image:", error);
+    alert("Failed to delete image. Please try again.");
+  }
+};
+
 
   const handleFileChange = (e) => {
     const files = e.target.files;
@@ -47,43 +68,41 @@ const ImageGallery = ({
     e.target.value = '';
   };
 
-  const handleCropComplete = async (croppedBlob) => {
-    // Create a file from the cropped blob
+const handleCropComplete = async (croppedBlob) => {
+  try {
+    setIsUploading(true);
     const originalFile = pendingFiles[currentFileIndex];
     const croppedFile = new File(
-      [croppedBlob], 
-      originalFile.name, 
-      { type: originalFile.type }
+      [croppedBlob],
+      originalFile.name.replace(/\.[^/.]+$/, "") + ".png",
+      { type: croppedBlob.type || "image/png" }
     );
-    
-    // Create a mock event object for the cropped file
-    const mockEvent = {
-      target: {
-        files: [croppedFile]
-      }
-    };
-    
-    // Upload the cropped image
-    await onImageUpload(variantIndex, mockEvent);
-    
-    // Clean up the current image URL
-    if (imageToCrop) {
-      URL.revokeObjectURL(imageToCrop);
-    }
-    
-    // Check if there are more files to crop
-    const nextIndex = currentFileIndex + 1;
-    if (nextIndex < pendingFiles.length) {
-      // Set up next file for cropping
-      setCurrentFileIndex(nextIndex);
-      const nextFile = pendingFiles[nextIndex];
+
+    // ✅ Send cropped file to parent for upload
+    await onImageUpload(croppedFile, productId, variantIndex);
+  console.log(croppedFile, productId, variantIndex,'file, productId, variantIndex');
+
+
+    // Continue with next file if available
+    const nextFileIndex = currentFileIndex + 1;
+    if (nextFileIndex < pendingFiles.length) {
+      const nextFile = pendingFiles[nextFileIndex];
       const nextImageUrl = URL.createObjectURL(nextFile);
+      if (imageToCrop) URL.revokeObjectURL(imageToCrop);
+
+      setCurrentFileIndex(nextFileIndex);
       setImageToCrop(nextImageUrl);
     } else {
-      // All files processed, close cropper
       handleCloseCropper();
     }
-  };
+  } catch (error) {
+    console.error("Upload failed:", error);
+    alert(`Image upload failed: ${error.message}`);
+    handleCloseCropper();
+  } finally {
+    setIsUploading(false);
+  }
+};
 
   const handleCloseCropper = () => {
     // Clean up object URLs
@@ -91,24 +110,39 @@ const ImageGallery = ({
       URL.revokeObjectURL(imageToCrop);
     }
     
+    // Clean up any remaining pending file URLs
+    pendingFiles.forEach((file, index) => {
+      if (index > currentFileIndex) {
+        const url = URL.createObjectURL(file);
+        URL.revokeObjectURL(url);
+      }
+    });
+    
     // Reset state
     setShowCropper(false);
     setImageToCrop(null);
     setPendingFiles([]);
     setCurrentFileIndex(0);
+    setIsUploading(false);
   };
+
+  // Calculate how many empty slots to show
+  const currentImageCount = images?.length || 0;
+  const showUploadSlot = currentImageCount < 5;
+  const emptySlotCount = Math.max(0, 5 - currentImageCount - (showUploadSlot ? 1 : 0));
 
   return (
     <>
       <div className="image-gallery-section">
         <div className="gallery-header">
           <h4>Product Images</h4>
-          <span className="image-count">{images?.length || 0}/5</span>
+          <span className="image-count">{currentImageCount}/5</span>
         </div>
         
         <div className="image-gallery">
+          {/* Render existing images */}
           {images?.map((image, imageIndex) => (
-            <div key={imageIndex} className="image-item">
+            <div key={`${image._id || imageIndex}-${variantIndex}`} className="image-item">
               <img 
                 src={image.url} 
                 alt={`${variantColor} variant ${imageIndex + 1}`}
@@ -117,13 +151,14 @@ const ImageGallery = ({
                   console.error('Failed to load image:', image.url);
                 }}
               />
-              <button 
-                className="remove-image-btn"
-                onClick={() => onRemoveImage(variantIndex, imageIndex)}
-                title="Remove image"
-              >
-                <X size={12} />
-              </button>
+            <button 
+              className="remove-image-btn"
+              onClick={() => handleRemoveImageClick(imageIndex)}
+              title="Remove image"
+              disabled={isUploading}
+            >
+              <X size={12} />
+            </button>
               {image.name && (
                 <div className="image-info">
                   <span className="image-name" title={image.name}>
@@ -134,6 +169,7 @@ const ImageGallery = ({
             </div>
           ))}
           
+          {/* Upload slot - only show if under 5 images */}
           {(!images || images.length < 5) && (
             <div className="upload-slot">
               <input
@@ -143,20 +179,31 @@ const ImageGallery = ({
                 accept="image/*"
                 onChange={handleFileChange}
                 style={{ display: 'none' }}
+                disabled={isUploading}
               />
               <label 
                 htmlFor={`upload-${productId}-${variantIndex}`}
-                className="upload-label"
-                title="Upload images (max 5MB each)"
+                className={`upload-label ${isUploading ? 'uploading' : ''}`}
+                title={isUploading ? "Uploading..." : "Upload images (max 5MB each)"}
               >
-                <Upload size={20} />
-                <span>Upload</span>
-                <small>Max 5MB</small>
+                {isUploading ? (
+                  <>
+                    <div className="upload-spinner" />
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={20} />
+                    <span>Upload</span>
+                    <small>Max 5MB</small>
+                  </>
+                )}
               </label>
             </div>
           )}
           
-          {Array.from({ length: Math.max(0, 5 - (images?.length || 0) - 1) }, (_, index) => (
+          {/* Empty slots */}
+          {Array.from({ length: Math.max(0, 5 - (images?.length || 0) - ((!images || images.length < 5) ? 1 : 0)) }, (_, index) => (
             <div key={`empty-${index}`} className="empty-slot">
               <ImageIcon size={20} />
             </div>
@@ -169,6 +216,13 @@ const ImageGallery = ({
             <span>No images uploaded for this variant</span>
           </div>
         )}
+        
+        {images && images.length === 5 && (
+          <div className="max-images-message">
+            <AlertCircle size={16} />
+            <span>Maximum images reached (5/5)</span>
+          </div>
+        )}
       </div>
 
       {/* Cropper Modal */}
@@ -177,6 +231,7 @@ const ImageGallery = ({
           imageSrc={imageToCrop}
           onClose={handleCloseCropper}
           onCropComplete={handleCropComplete}
+          isUploading={isUploading}
         />
       )}
     </>

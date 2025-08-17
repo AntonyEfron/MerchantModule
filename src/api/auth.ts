@@ -35,10 +35,16 @@ export const registerMerchant = async (
 };
 
 export const login = async (email: string, password: string) => {
+  // console.log('resresresresresres');
+
+
   const res = await axiosInstance.post('merchant/login', { 
     identifier: email,
     password 
   });
+
+  console.log(res,'resresresresresres');
+  
 
   // No manual localStorage here!
   return {

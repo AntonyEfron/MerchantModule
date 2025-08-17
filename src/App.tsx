@@ -1,4 +1,3 @@
-// App.tsx - Updated version
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -13,11 +12,15 @@ import { NotificationProvider } from './components/Order/NotificationContext';
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';
 import Sidebar from './components/Sidebar';
-import ProductPage from '../src/components/ProductPage/ProductPage';
+import ProductPage from './components/ProductPage/ProductPage';
 import Orders from './Pages/Order';
 import Accounts from './Pages/Accounts';
 import RingNotification from './components/Order/RingNotification';
 import OrderManagement from './components/Order/OrderManagement';
+
+// 👉 New pages
+import AddNewProduct from './components/Products/AddNewProduct';
+import AddBrandPage from './components/Brand/AddBrandPage';
 
 // Layout
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -64,13 +67,17 @@ function AppRoot() {
               <Route path="/merchant/login" element={<Login />} />
               <Route path="/merchant/register" element={<Register />} />
 
-              {/* Now all pages accessible */}
-              <Route path="/merchant/add-product" element={<ProductPage />} />
+              {/* Product + Brand Pages */}
+              <Route path="/merchant/products" element={<ProductPage />} />
+              <Route path="/add-product" element={<AddNewProduct />} />
+              <Route path="/add-brand" element={<AddBrandPage />} />
+
+              {/* Others */}
               <Route path="/merchant/orders" element={<OrderManagement />} />
               <Route path="/merchant/accounts" element={<Accounts />} />
 
               {/* Default */}
-              <Route path="/" element={<Navigate to="/merchant/add-product" />} />
+              <Route path="/" element={<Navigate to="/merchant/products" />} />
             </Routes>
           </AppLayout>
         </Router>

@@ -1,76 +1,79 @@
-// components/OrderManagement/OrderManagement.tsx
-import React, { useState, useEffect } from 'react';
-import { useNotifications } from './NotificationContext';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNotifications } from '../../context/NotificationContext';
 import './styles/OrderManagement.css';
 
 type OrderPhase = 'pending' | 'in-progress' | 'in-transit' | 'returned' | 'completed';
 
+const phaseMap: Record<OrderPhase, string> = {
+  pending: 'Pending Orders',
+  'in-progress': 'In Progress',
+  'in-transit': 'In Transit',
+  returned: 'Returned Orders',
+  completed: 'Completed',
+};
+
+const phaseIconMap: Record<OrderPhase, string> = {
+  pending: '⏳',
+  'in-progress': '👨‍🍳',
+  'in-transit': '🚚',
+  returned: '↩️',
+  completed: '✅',
+};
+
 const OrderManagement: React.FC = () => {
-  const { 
-    pendingOrders, 
-    acceptedOrders, 
-    acceptOrder, 
+  const {
+    pendingOrders,
+    acceptedOrders,
+    packedOrders,
+    transitOrders,
+    completedOrders,
+    returnedOrders,
+    acceptOrder,
     rejectOrder,
-    markOrderPacked, 
-    completePackaging,
-    addIncomingOrder 
+    markOrderPacked,
+    markOrderInTransit,
+    completeOrder,
+    returnOrder,
+    addIncomingOrder,
   } = useNotifications();
 
   const [activePhase, setActivePhase] = useState<OrderPhase>('pending');
   const [timers, setTimers] = useState<Record<string, number>>({});
   const [adherenceTimers, setAdherenceTimers] = useState<Record<string, number>>({});
+  const notificationAudioRef = useRef<HTMLAudioElement>(null);
 
-  // Mock data for transit, returned, and completed orders
-  const [transitOrders, setTransitOrders] = useState<any[]>([]);
-  const [returnedOrders, setReturnedOrders] = useState<any[]>([]);
-  const [completedOrders, setCompletedOrders] = useState<any[]>([]);
-
+  // Packaging and adherence timers for accepted (“packaging”) and packed orders
   useEffect(() => {
     const intervals: Record<string, NodeJS.Timeout> = {};
     const adherenceIntervals: Record<string, NodeJS.Timeout> = {};
 
-    acceptedOrders.forEach(order => {
-      // Original packaging timer
+    acceptedOrders.concat(packedOrders).forEach(order => {
+      // Packaging timer (10 min)
       if (order.status === 'packaging' && order.acceptedAt) {
         const startTime = new Date(order.acceptedAt).getTime();
-        const endTime = startTime + (10 * 60 * 1000); // 10 minutes
-
+        const endTime = startTime + 10 * 60 * 1000;
         intervals[order.id] = setInterval(() => {
           const now = Date.now();
           const remaining = Math.max(0, endTime - now);
-          
-          setTimers(prev => ({
-            ...prev,
-            [order.id]: remaining
-          }));
-
-          if (remaining === 0) {
-            clearInterval(intervals[order.id]);
-          }
+          setTimers(prev => ({ ...prev, [order.id]: remaining }));
+          if (remaining === 0) clearInterval(intervals[order.id]);
         }, 1000);
       }
-
-      // Adherence monitoring timer
+      // Adherence timer
       if ((order.status === 'packaging' || order.status === 'packed') && order.acceptedAt) {
         const startTime = new Date(order.acceptedAt).getTime();
-
         adherenceIntervals[order.id] = setInterval(() => {
           const now = Date.now();
           const elapsed = now - startTime;
-          
-          setAdherenceTimers(prev => ({
-            ...prev,
-            [order.id]: elapsed
-          }));
+          setAdherenceTimers(prev => ({ ...prev, [order.id]: elapsed }));
         }, 1000);
       }
     });
-
     return () => {
       Object.values(intervals).forEach(clearInterval);
       Object.values(adherenceIntervals).forEach(clearInterval);
     };
-  }, [acceptedOrders]);
+  }, [acceptedOrders, packedOrders]);
 
   const formatTime = (milliseconds: number) => {
     const minutes = Math.floor(milliseconds / 60000);
@@ -93,15 +96,14 @@ const OrderManagement: React.FC = () => {
       items: ['Burger', 'Fries'],
       total: Math.floor(Math.random() * 500) + 100,
       timestamp: new Date(),
-      status: 'pending' as const
+      status: 'pending' as const,
     };
     addIncomingOrder(demoOrder);
   };
 
+  // Handler wrappers for UI actions
   const handleRejectOrder = (orderId: string) => {
-    if (window.confirm('Are you sure you want to reject this order?')) {
-      rejectOrder(orderId);
-    }
+    if (window.confirm('Are you sure you want to reject this order?')) rejectOrder(orderId);
   };
 
   const handleMarkPacked = (orderId: string) => {
@@ -109,295 +111,135 @@ const OrderManagement: React.FC = () => {
   };
 
   const handleMarkInTransit = (orderId: string) => {
-    const order = acceptedOrders.find(o => o.id === orderId);
-    if (order) {
-      const transitOrder = {
-        ...order,
-        status: 'in-transit',
-        transitAt: new Date()
-      };
-      setTransitOrders(prev => [...prev, transitOrder]);
-      // Remove from accepted orders (this would be handled by your context)
-    }
+    markOrderInTransit(orderId);
+  };
+
+  const handleCompleteOrder = (orderId: string) => {
+    completeOrder(orderId);
   };
 
   const handleMarkReturned = (orderId: string, fromPhase: 'transit' | 'completed') => {
     if (window.confirm('Mark this order as returned?')) {
-      let order;
-      if (fromPhase === 'transit') {
-        order = transitOrders.find(o => o.id === orderId);
-        setTransitOrders(prev => prev.filter(o => o.id !== orderId));
-      } else {
-        order = completedOrders.find(o => o.id === orderId);
-        setCompletedOrders(prev => prev.filter(o => o.id !== orderId));
-      }
-      
-      if (order) {
-        const returnedOrder = {
-          ...order,
-          status: 'returned',
-          returnedAt: new Date()
-        };
-        setReturnedOrders(prev => [...prev, returnedOrder]);
-      }
+      returnOrder(orderId, fromPhase);
     }
   };
 
-  const handleCompleteOrder = (orderId: string) => {
-    const order = transitOrders.find(o => o.id === orderId);
-    if (order) {
-      const completedOrder = {
-        ...order,
-        status: 'completed',
-        completedAt: new Date()
-      };
-      setCompletedOrders(prev => [...prev, completedOrder]);
-      setTransitOrders(prev => prev.filter(o => o.id !== orderId));
-    }
-  };
-
+  // Fetch order data by active phase from context
   const getPhaseData = () => {
     switch (activePhase) {
-      case 'pending':
-        return pendingOrders;
-      case 'in-progress':
-        return acceptedOrders;
-      case 'in-transit':
-        return transitOrders;
-      case 'returned':
-        return returnedOrders;
-      case 'completed':
-        return completedOrders;
-      default:
-        return [];
+      case 'pending': return pendingOrders;
+      case 'in-progress': return acceptedOrders.concat(packedOrders);
+      case 'in-transit': return transitOrders;
+      case 'returned': return returnedOrders;
+      case 'completed': return completedOrders;
+      default: return [];
     }
   };
 
-  const getPhaseTitle = () => {
-    switch (activePhase) {
-      case 'pending':
-        return 'Pending Orders';
-      case 'in-progress':
-        return 'In Progress';
-      case 'in-transit':
-        return 'In Transit';
-      case 'returned':
-        return 'Returned Orders';
-      case 'completed':
-        return 'Completed Orders';
-    }
-  };
-
-  const getPhaseIcon = () => {
-    switch (activePhase) {
-      case 'pending':
-        return '⏳';
-      case 'in-progress':
-        return '👨‍🍳';
-      case 'in-transit':
-        return '🚚';
-      case 'returned':
-        return '↩️';
-      case 'completed':
-        return '✅';
-    }
-  };
-
-  const renderOrderCard = (order: any) => {
-    return (
-      <div key={order.id} className={`order-card ${order.status || activePhase} slide-in`}>
-        <div className="order-info">
-          <div className="order-header">
-            <h3>{order.customerName}</h3>
-            <span className={`status-badge ${order.status || activePhase}`}>
-              {activePhase === 'pending' && '⏳ Pending'}
-              {order.status === 'packaging' && '👨‍🍳 Cooking'}
-              {order.status === 'packed' && '📦 Packed'}
-              {activePhase === 'in-transit' && '🚚 In Transit'}
-              {activePhase === 'returned' && '↩️ Returned'}
-              {activePhase === 'completed' && '✅ Completed'}
+  // Render order card UI
+  const renderOrderCard = (order: any) => (
+    <div key={order.id} className={`order-card ${order.status || activePhase} slide-in`}>
+      <div className="order-info">
+        <div className="order-header">
+          <h3>{order.customerName}</h3>
+          <span className={`status-badge ${order.status || activePhase}`}>
+            {order.status === 'pending' && '⏳ Pending'}
+            {order.status === 'packaging' && '👨‍🍳 Cooking'}
+            {order.status === 'packed' && '📦 Packed'}
+            {order.status === 'in-transit' && '🚚 In Transit'}
+            {order.status === 'returned' && '↩️ Returned'}
+            {order.status === 'completed' && '✅ Completed'}
+          </span>
+        </div>
+        <p className="order-items">Items: {order.items.join(', ')}</p>
+        <p className="order-total">Total: ₹{order.total}</p>
+        <p className="order-time">
+          Time: {order.timestamp.toLocaleTimeString()}
+          {order.transitAt && ` | Transit: ${new Date(order.transitAt).toLocaleTimeString()}`}
+          {order.completedAt && ` | Completed: ${new Date(order.completedAt).toLocaleTimeString()}`}
+          {order.returnedAt && ` | Returned: ${new Date(order.returnedAt).toLocaleTimeString()}`}
+        </p>
+        {/* Packaging Timer */}
+        {order.status === 'packaging' && timers[order.id] !== undefined && (
+          <div className="timer packaging-timer">
+            <span className="timer-label">⏰ Packaging Time:</span>
+            <span className={`timer-value ${timers[order.id] < 60000 ? 'urgent' : ''}`}>
+              {formatTime(timers[order.id])}
             </span>
           </div>
-          <p className="order-items">Items: {order.items.join(', ')}</p>
-          <p className="order-total">Total: ₹{order.total}</p>
-          <p className="order-time">
-            Time: {order.timestamp.toLocaleTimeString()}
-            {order.transitAt && ` | Transit: ${order.transitAt.toLocaleTimeString()}`}
-            {order.completedAt && ` | Completed: ${order.completedAt.toLocaleTimeString()}`}
-            {order.returnedAt && ` | Returned: ${order.returnedAt.toLocaleTimeString()}`}
-          </p>
-          
-          {/* Packaging Timer */}
-          {order.status === 'packaging' && timers[order.id] !== undefined && (
-            <div className="timer packaging-timer">
-              <span className="timer-label">⏰ Packaging Time:</span>
-              <span className={`timer-value ${timers[order.id] < 60000 ? 'urgent' : ''}`}>
-                {formatTime(timers[order.id])}
-              </span>
+        )}
+        {/* Adherence Timer */}
+        {adherenceTimers[order.id] && (order.status === 'packaging' || order.status === 'packed') && (
+          <div className="adherence-monitor">
+            <span className="adherence-label">📊 Order Duration:</span>
+            <span className={`adherence-time ${getAdherenceStatus(adherenceTimers[order.id])}`}>
+              {formatTime(adherenceTimers[order.id])}
+            </span>
+            <div className={`adherence-indicator ${getAdherenceStatus(adherenceTimers[order.id])}`}>
+              {getAdherenceStatus(adherenceTimers[order.id]) === 'excellent' && '🟢 Excellent'}
+              {getAdherenceStatus(adherenceTimers[order.id]) === 'good' && '🟡 Good'}
+              {getAdherenceStatus(adherenceTimers[order.id]) === 'warning' && '🟠 Warning'}
+              {getAdherenceStatus(adherenceTimers[order.id]) === 'critical' && '🔴 Critical'}
             </div>
-          )}
-
-          {/* Adherence Monitoring Timer */}
-          {adherenceTimers[order.id] && (order.status === 'packaging' || order.status === 'packed') && (
-            <div className="adherence-monitor">
-              <span className="adherence-label">📊 Order Duration:</span>
-              <span className={`adherence-time ${getAdherenceStatus(adherenceTimers[order.id])}`}>
-                {formatTime(adherenceTimers[order.id])}
-              </span>
-              <div className={`adherence-indicator ${getAdherenceStatus(adherenceTimers[order.id])}`}>
-                {getAdherenceStatus(adherenceTimers[order.id]) === 'excellent' && '🟢 Excellent'}
-                {getAdherenceStatus(adherenceTimers[order.id]) === 'good' && '🟡 Good'}
-                {getAdherenceStatus(adherenceTimers[order.id]) === 'warning' && '🟠 Warning'}
-                {getAdherenceStatus(adherenceTimers[order.id]) === 'critical' && '🔴 Critical'}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="action-buttons">
-          {activePhase === 'pending' && (
-            <>
-              <button 
-                onClick={() => acceptOrder(order.id)}
-                className="accept-btn"
-              >
-                <span className="btn-icon">✓</span>
-                Accept Order
-              </button>
-              <button 
-                onClick={() => handleRejectOrder(order.id)}
-                className="reject-btn"
-              >
-                <span className="btn-icon">✗</span>
-                Reject Order
-              </button>
-            </>
-          )}
-
-          {order.status === 'packaging' && (
-            <button 
-              onClick={() => handleMarkPacked(order.id)}
-              className="packed-btn"
-            >
-              <span className="btn-icon">📦</span>
-              Mark as Packed
-            </button>
-          )}
-          
-          {order.status === 'packed' && (
-            <button 
-              onClick={() => handleMarkInTransit(order.id)}
-              className="transit-btn"
-            >
-              <span className="btn-icon">🚚</span>
-              Send to Transit
-            </button>
-          )}
-
-          {activePhase === 'in-transit' && (
-            <>
-              <button 
-                onClick={() => handleCompleteOrder(order.id)}
-                className="complete-btn"
-              >
-                <span className="btn-icon">✅</span>
-                Mark Delivered
-              </button>
-              <button 
-                onClick={() => handleMarkReturned(order.id, 'transit')}
-                className="return-btn"
-              >
-                <span className="btn-icon">↩️</span>
-                Mark Returned
-              </button>
-            </>
-          )}
-
-          {activePhase === 'completed' && (
-            <button 
-              onClick={() => handleMarkReturned(order.id, 'completed')}
-              className="return-btn"
-            >
-              <span className="btn-icon">↩️</span>
-              Mark Returned
-            </button>
-          )}
-
-          {activePhase === 'returned' && (
-            <div className="return-info">
-              <span className="return-reason">Reason: Customer Request</span>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    );
-  };
+      <div className="action-buttons">
+        {order.status === 'pending' && (
+          <>
+            <button onClick={() => acceptOrder(order.id)} className="accept-btn">✓ Accept Order</button>
+            <button onClick={() => handleRejectOrder(order.id)} className="reject-btn">✗ Reject Order</button>
+          </>
+        )}
+        {order.status === 'packaging' && (
+          <button onClick={() => handleMarkPacked(order.id)} className="packed-btn">📦 Mark as Packed</button>
+        )}
+        {order.status === 'packed' && (
+          <button onClick={() => handleMarkInTransit(order.id)} className="transit-btn">🚚 Send to Transit</button>
+        )}
+        {order.status === 'in-transit' && (
+          <>
+            <button onClick={() => handleCompleteOrder(order.id)} className="complete-btn">✅ Mark Delivered</button>
+            <button onClick={() => handleMarkReturned(order.id, 'transit')} className="return-btn">↩️ Mark Returned</button>
+          </>
+        )}
+        {order.status === 'completed' && (
+          <button onClick={() => handleMarkReturned(order.id, 'completed')} className="return-btn">↩️ Mark Returned</button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="order-management">
+      <audio ref={notificationAudioRef} src="/sounds/notification.mp3" preload="auto" />
       <div className="header">
         <h1>Order Management</h1>
-        <button onClick={simulateIncomingOrder} className="demo-btn">
-          <span className="btn-icon">📦</span>
-          Simulate Incoming Order
-        </button>
+        <button onClick={simulateIncomingOrder} className="demo-btn">📦 Simulate Incoming Order</button>
       </div>
-
       {/* Phase Navigation */}
       <div className="phase-navigation">
-        <button 
-          className={`phase-tab ${activePhase === 'pending' ? 'active' : ''}`}
-          onClick={() => setActivePhase('pending')}
-        >
-          <span className="phase-icon">⏳</span>
-          <span className="phase-label">Pending</span>
-          {pendingOrders.length > 0 && <span className="phase-count">{pendingOrders.length}</span>}
-        </button>
-        <button 
-          className={`phase-tab ${activePhase === 'in-progress' ? 'active' : ''}`}
-          onClick={() => setActivePhase('in-progress')}
-        >
-          <span className="phase-icon">👨‍🍳</span>
-          <span className="phase-label">In Progress</span>
-          {acceptedOrders.length > 0 && <span className="phase-count">{acceptedOrders.length}</span>}
-        </button>
-        <button 
-          className={`phase-tab ${activePhase === 'in-transit' ? 'active' : ''}`}
-          onClick={() => setActivePhase('in-transit')}
-        >
-          <span className="phase-icon">🚚</span>
-          <span className="phase-label">In Transit</span>
-          {transitOrders.length > 0 && <span className="phase-count">{transitOrders.length}</span>}
-        </button>
-        <button 
-          className={`phase-tab ${activePhase === 'returned' ? 'active' : ''}`}
-          onClick={() => setActivePhase('returned')}
-        >
-          <span className="phase-icon">↩️</span>
-          <span className="phase-label">Returned</span>
-          {returnedOrders.length > 0 && <span className="phase-count">{returnedOrders.length}</span>}
-        </button>
-        <button 
-          className={`phase-tab ${activePhase === 'completed' ? 'active' : ''}`}
-          onClick={() => setActivePhase('completed')}
-        >
-          <span className="phase-icon">✅</span>
-          <span className="phase-label">Completed</span>
-          {completedOrders.length > 0 && <span className="phase-count">{completedOrders.length}</span>}
-        </button>
+        {(['pending', 'in-progress', 'in-transit', 'returned', 'completed'] as OrderPhase[]).map(phase => (
+          <button
+            key={phase}
+            className={`phase-tab ${activePhase === phase ? 'active' : ''}`}
+            onClick={() => setActivePhase(phase)}
+          >
+            <span className="phase-icon">{phaseIconMap[phase]}</span>
+            <span className="phase-label">{phaseMap[phase]}</span>
+          </button>
+        ))}
       </div>
-
       {/* Current Phase Orders */}
       <div className="current-phase">
         <h2 className={`phase-header ${activePhase}`}>
-          <span className="section-icon">{getPhaseIcon()}</span>
-          {getPhaseTitle()} ({getPhaseData().length})
+          <span className="section-icon">{phaseIconMap[activePhase]}</span>
+          {phaseMap[activePhase]} ({getPhaseData().length})
         </h2>
-        
         {getPhaseData().length === 0 ? (
           <div className="empty-state">
-            <div className="empty-icon">{getPhaseIcon()}</div>
-            <p>No {getPhaseTitle().toLowerCase()} at the moment</p>
+            <div className="empty-icon">{phaseIconMap[activePhase]}</div>
+            <p>No {phaseMap[activePhase].toLowerCase()} at the moment</p>
           </div>
         ) : (
           <div className="orders-container">

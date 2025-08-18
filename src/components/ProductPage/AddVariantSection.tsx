@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, X, ChevronDown, ChevronUp, Image as ImageIcon } from 'lucide-react';
+import { Plus, X, ChevronDown, ChevronUp, Image as ImageIcon, Minus } from 'lucide-react';
 import VariantForm from './VariantForm';
 import ImageGallery from './ImageGallery';
+import { getStockStatus } from './utils/stockUtils'; // Import the utility function
 import './styles/AddVariantSection.css';
 
 const AddVariantSection = ({ 
@@ -13,7 +14,8 @@ const AddVariantSection = ({
   showVariants,
   onToggleShowVariants,
   onImageUpload,
-  onRemoveImage
+  onRemoveImage,
+  onUpdateStock // This now comes from ProductItem for stock updates
 }) => {
   const [showImageGallery, setShowImageGallery] = useState(false);
 
@@ -64,16 +66,47 @@ const AddVariantSection = ({
         />
       )}
 
-      {/* Show Image Gallery if toggled and only 1 variant */}
+      {/* Show Image Gallery and Sizes Grid if toggled and only 1 variant */}
       {showImageGallery && variants.length === 1 && (
-        <ImageGallery
-          images={variants[0].images || []}
-          productId={productId}
-          variantIndex={0}
-          variantColor={variants[0].color || 'Default'}
+        <>
+          <ImageGallery
+            images={variants[0].images || []}
+            productId={productId}
+            variantIndex={0}
+            variantColor={variants[0].color || 'Default'}
             onImageUpload={onImageUpload}
             onRemoveImage={onRemoveImage}
-        />
+          />
+          
+          {/* Sizes Grid - copied from VariantItem */}
+          <div className="sizes-grid">
+            {variants[0].sizes?.map((sizeData, sizeIndex) => (
+              <div key={sizeIndex} className={`size-item ${getStockStatus(sizeData.stock)}`}>
+                <div className="size-info">
+                  <span className="size-label">{sizeData.size}</span>
+                  <span className={`stock-count ${getStockStatus(sizeData.stock)}`}>
+                    {sizeData.stock}
+                  </span>
+                </div>
+                <div className="stock-controls">
+                  <button 
+                    className="stock-btn decrease"
+                    onClick={() => onUpdateStock(0, sizeIndex, -1)} // variantIndex is 0 since we only have 1 variant
+                    disabled={sizeData.stock === 0}
+                  >
+                    <Minus size={12} />
+                  </button>
+                  <button 
+                    className="stock-btn increase"
+                    onClick={() => onUpdateStock(0, sizeIndex, 1)} // variantIndex is 0 since we only have 1 variant
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

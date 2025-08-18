@@ -157,7 +157,7 @@ export const fetchProductsByMerchantId = async (merchantId) => {
     const res = await axiosInstance.get(
       `merchant/fetchProductsByMerchantId/${merchantId}`
     );
-    console.log("Fetched products:", res.data); // ✅ actual data
+    // console.log("Fetched products:", res.data); // ✅ actual data
     return res.data;  // axios automatically parses JSON
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -198,6 +198,24 @@ export const deleteImage = async (imageId) => {
   return data;
 };
 
+
+export const saveProductDetails = async (productId, productData) => {
+
+  console.log(productId, productData,'productId, productDataproductId, productData');
+  
+    try {
+        const response = await axiosInstance.put(`merchant/products/${productId}/details`, productData); 
+        return response.data;
+    } catch (error) {
+        if (error.response?.data?.errors?.length) {
+            throw new Error(error.response.data.errors[0].message);
+        } else if (error.response?.data?.message) {
+            throw new Error(error.response.data.message);
+        } else {
+            throw new Error('Network or unknown error occurred.');
+        }
+    }
+};
 
 
 

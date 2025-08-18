@@ -1,6 +1,5 @@
-// components/RingNotification/RingNotification.tsx
 import React, { useEffect, useRef } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import './styles/RingNotification.css';
 
 const RingNotification: React.FC = () => {
@@ -26,10 +25,10 @@ const RingNotification: React.FC = () => {
           <div className="ring-circle ring-circle-2"></div>
           <div className="ring-circle ring-circle-3"></div>
         </div>
-        
+
         <h2>🔔 New Order Incoming!</h2>
         <p>You have {pendingOrders.length} pending order(s)</p>
-        
+
         <div className="order-preview">
           {pendingOrders.map(order => (
             <div key={order.id} className="order-item">
@@ -38,21 +37,13 @@ const RingNotification: React.FC = () => {
             </div>
           ))}
         </div>
-        
-        <button 
-          className="stop-ring-btn"
-          onClick={stopRing}
-        >
+
+        <button className="stop-ring-btn" onClick={stopRing}>
           Stop Ring
         </button>
-        
-        <audio
-          ref={audioRef}
-          loop
-          preload="auto"
-        >
+
+        <audio ref={audioRef} loop preload="auto">
           <source src="/notification-sound.mp3" type="audio/mpeg" />
-          {/* Fallback: browser-generated beep */}
         </audio>
       </div>
     </div>

@@ -7,7 +7,7 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { NotificationProvider } from './components/Order/NotificationContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';

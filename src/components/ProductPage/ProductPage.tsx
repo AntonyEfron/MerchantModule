@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Tag, Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { fetchProductsByMerchantId,uploadImage } from '../../api/products';
+import { fetchProductsByMerchantId, uploadImage, saveProductDetails } from '../../api/products';
 import ProductItem from './ProductItem';
 import './styles/ProductPage.css';
 
@@ -20,17 +20,12 @@ const ProductPage = () => {
       setLoading(false);
       return;
     }
-
     const merchant = JSON.parse(merchantData);
-    console.log(merchant.id,'merchantmerchantmerchantmerchant');
-    
-
     const loadProducts = async () => {
       try {
         const data = await fetchProductsByMerchantId(merchant.id);
-        console.log(data,'datadatadatadatadata');
-        setProducts(data);   // ✅ set products into state
-        
+        console.log(data, 'datadatadatadatadata');
+        setProducts(data);
       } catch (error) {
         console.error('Failed to load products:', error);
       } finally {
@@ -41,59 +36,102 @@ const ProductPage = () => {
     loadProducts();
   }, []);
 
-  if (loading) {
-    return <div className="loading">Loading products...</div>;
-  }
+  // ✅ saveProductChanges function
+  const saveProductChanges = async (product, tempProductData) => {
+    try {
+      const changedData = {};
 
-  const handleImageUpload = async (file, productId, variantIndex) => {
-  // console.log(file, productId, variantIndex,'file, productId, variantIndex');
-  try {
-    const uploadedImageResponse = await uploadImage(file, productId, variantIndex);
-    setProducts(prevProducts =>
-      prevProducts.map(p =>
-        p.id === productId
-          ? {
-              ...p,
-              variants: p.variants.map((v, i) =>
-                i === variantIndex ? { ...v, images: uploadedImageResponse.images } : v
-              ),
-            }
-          : p
-      )
-    );
-  } catch (err) {
-    console.error("Image upload failed:", err);
-    alert("Image upload failed. Please try again.");
-  }
-};
+      if (tempProductData.name !== undefined && tempProductData.name !== product.name) {
+        changedData.name = tempProductData.name;
+      }
+      if (tempProductData.description !== undefined && tempProductData.description !== product.description) {
+        changedData.description = tempProductData.description;
+      }
 
-const handleRemoveImage = (productId, variantIndex, imageIndex) => {
-  setProducts(prevProducts =>
-    prevProducts.map(product =>
-      product.id === productId
-        ? {
-            ...product,
-            variants: product.variants.map((variant, idx) =>
-              idx === variantIndex
-                ? {
-                    ...variant,
-                    images: variant.images.filter((_, i) => i !== imageIndex)
-                  }
-                : variant
-            )
-          }
-        : product
-    )
-  );
-};
+      if (Object.keys(changedData).length > 0) {
+        // Use the correct product ID (either _id or id)
+        const productId = product._id || product.id;
+        const updatedProduct = await saveProductDetails(productId, changedData);
+        updateProducts(updatedProduct.product);
+        return { success: true, updatedProduct };
+      }
 
-
-  const deleteProduct = (productId) => {
-    setProducts(prevProducts => prevProducts.filter(product => product.id !== productId));
+      return { success: true, updatedProduct: product };
+    } catch (error) {
+      console.error('Error saving product changes:', error);
+      throw error;
+    }
   };
 
-  const updateProducts = (updatedProducts) => {
-    setProducts(updatedProducts);
+  const handleImageUpload = async (file, productId, variantIndex) => {
+    try {
+      const uploadedImageResponse = await uploadImage(file, productId, variantIndex);
+      setProducts(prevProducts =>
+        prevProducts.map(p => {
+          const pId = p._id || p.id;
+          return pId === productId
+            ? {
+                ...p,
+                variants: p.variants.map((v, i) =>
+                  i === variantIndex ? { ...v, images: uploadedImageResponse.images } : v
+                ),
+              }
+            : p;
+        })
+      );
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      alert("Image upload failed. Please try again.");
+    }
+  };
+
+  const handleRemoveImage = (productId, variantIndex, imageIndex) => {
+    setProducts(prevProducts =>
+      prevProducts.map(product => {
+        const pId = product._id || product.id;
+        return pId === productId
+          ? {
+              ...product,
+              variants: product.variants.map((variant, idx) =>
+                idx === variantIndex
+                  ? {
+                      ...variant,
+                      images: variant.images.filter((_, i) => i !== imageIndex)
+                    }
+                  : variant
+              )
+            }
+          : product;
+      })
+    );
+  };
+
+  const deleteProduct = (productId) => {
+    setProducts(prevProducts => 
+      prevProducts.filter(product => {
+        const pId = product._id || product.id;
+        return pId !== productId;
+      })
+    );
+  };
+
+  // ✅ CORRECTED: Fixed updateProducts function
+  const updateProducts = (updatedProduct) => {
+    console.log('Updating product:', updatedProduct);
+    
+    setProducts(prevProducts =>
+      prevProducts.map(p => {
+        // Handle both _id and id formats
+        const productId = p._id || p.id;
+        const updatedId = updatedProduct._id || updatedProduct.id;
+        
+        if (productId === updatedId) {
+          console.log('Replacing product:', p, 'with:', updatedProduct);
+          return updatedProduct; // Return the updated product directly
+        }
+        return p;
+      })
+    );
   };
 
   const getTotalStock = (variants) => {
@@ -105,8 +143,8 @@ const handleRemoveImage = (productId, variantIndex, imageIndex) => {
   // Filter products based on search term
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (product.brandId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.categoryId?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const clearSearch = () => setSearchTerm('');
@@ -184,15 +222,16 @@ const handleRemoveImage = (productId, variantIndex, imageIndex) => {
         <div className="products-list">
           {filteredProducts.length > 0 ? (
             filteredProducts.map((product, index) => (
-        <ProductItem
-          key={product.id}
-          product={product}
-          index={index}
-          onImageUpload={handleImageUpload}
-          onRemoveImage={handleRemoveImage} // ✅ just pass the handler
-          updateProducts={updateProducts}
-          onDelete={deleteProduct}
-        />
+              <ProductItem
+                key={product._id || product.id} // ✅ Handle both ID formats
+                product={product}
+                index={index}
+                onImageUpload={handleImageUpload}
+                onRemoveImage={handleRemoveImage}
+                updateProducts={updateProducts}
+                onDelete={deleteProduct}
+                onSaveProductChanges={saveProductChanges}
+              />
             ))
           ) : (
             <div className="no-results">

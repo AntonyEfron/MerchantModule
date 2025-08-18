@@ -5,7 +5,6 @@ import ImageGallery from './ImageGallery';
 import { getStockStatus } from './utils/stockUtils';
 import './styles/VariantItem.css';
 
-
 const VariantItem = ({
   variant,
   variantIndex,
@@ -13,7 +12,7 @@ const VariantItem = ({
   isExpanded,
   onToggleExpansion,
   onDelete,
-  onUpdateStock,
+  onUpdateStock, // This now comes from ProductItem
   onImageUpload,
   onRemoveImage
 }) => {
@@ -91,7 +90,6 @@ const VariantItem = ({
                     {sizeData.stock}
                   </span>
                 </div>
-                
                 <div className="stock-controls">
                   <button 
                     className="stock-btn decrease"

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import VariantItem from './VariantItem';
 import './styles/VariantsList.css';
 
-const VariantsList = ({ variants, productId, onVariantUpdate, onImageUpload, onRemoveImage}) => {
+const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onImageUpload, onRemoveImage }) => {
   const [expandedVariants, setExpandedVariants] = useState({});
 
   const toggleVariantExpansion = (variantIndex) => {
@@ -24,23 +24,15 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onImageUpload, onR
     onVariantUpdate(updatedVariants);
   };
 
-  const updateStock = (variantIndex, sizeIndex, increment) => {
-    const updatedVariants = [...variants];
-    const currentStock = updatedVariants[variantIndex].sizes[sizeIndex].stock;
-    const newStock = Math.max(0, currentStock + increment);
-    updatedVariants[variantIndex].sizes[sizeIndex].stock = newStock;
+  // ✅ Updated to handle the full images array from API response
+  const handleImageUpload = (variantIndex, uploadedImages) => {
+    const updatedVariants = variants.map((variant, index) =>
+      index === variantIndex
+        ? { ...variant, images: uploadedImages }
+        : variant
+    );
     onVariantUpdate(updatedVariants);
   };
-
-  // ✅ Updated to handle the full images array from API response
-    const handleImageUpload = (variantIndex, uploadedImages) => {
-      const updatedVariants = variants.map((variant, index) =>
-        index === variantIndex
-          ? { ...variant, images: uploadedImages } // ✅ use directly
-          : variant
-      );
-      onVariantUpdate(updatedVariants);
-    };
 
   // ✅ Fixed remove image handler
   const removeImage = (variantIndex, imageIndex) => {
@@ -70,7 +62,7 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onImageUpload, onR
           isExpanded={isVariantExpanded(variantIndex)}
           onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
           onDelete={() => deleteVariant(variantIndex)}
-          onUpdateStock={updateStock}
+          onUpdateStock={onUpdateStock}
           onImageUpload={onImageUpload}
           onRemoveImage={onRemoveImage}
         />

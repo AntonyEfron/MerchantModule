@@ -26,15 +26,15 @@ export const addBaseProduct = async (productData) => {
       }
 };
 
-// export const getBaseProducts = async () => {
-//     try {
-//         const response = await axiosInstance.get('merchant/getBaseProducts');
-//         return response.data;
-//     } catch (error) {
-//         console.log(error)
-//         throw error.response ? error.response.data : new Error('Network Error');
-//     }
-// }
+export const deleteProduct = async (productId) => {
+  try {
+    const response = await axiosInstance.delete(`merchant/deleteProduct/${productId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting product:", error.response?.data || error.message);
+    throw error;
+  }
+};
 
 export const getCategories = async () => {
   try {
@@ -129,6 +129,16 @@ export const addVariant = async (productId, formData) => {
   }
 };
 
+export const deleteVariant = async (productId, variantId) => {
+  try {
+    const response = await axiosInstance.delete(`merchant/deleteVariant/${productId}/${variantId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting variant:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export const updateVariant = async (productId, variantId, formData) => {
   try {
     const res = await axiosInstance.put(
@@ -139,6 +149,18 @@ export const updateVariant = async (productId, variantId, formData) => {
     return res.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Update failed");
+  }
+};
+
+export const updateStock = async (productId, variantId, size, stock) => {
+  try {
+    const res = await axiosInstance.put(
+      `merchant/updateStock/${productId}/${variantId}/${size}`,
+      { stock }
+    );
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Stock update failed");
   }
 };
 

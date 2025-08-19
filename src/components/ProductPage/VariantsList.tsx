@@ -1,6 +1,6 @@
-// components/ProductPage/VariantsList.jsx
 import React, { useState } from 'react';
 import VariantItem from './VariantItem';
+import { deleteVariant as deleteVariantAPI } from '../../api/products';  // ✅ import API
 import './styles/VariantsList.css';
 
 const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onImageUpload, onRemoveImage }) => {
@@ -19,49 +19,30 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onI
     return expandedVariants[key] || false;
   };
 
-  const deleteVariant = (variantIndex) => {
-    const updatedVariants = variants.filter((_, index) => index !== variantIndex);
-    onVariantUpdate(updatedVariants);
-  };
-
-  // ✅ Updated to handle the full images array from API response
-  const handleImageUpload = (variantIndex, uploadedImages) => {
-    const updatedVariants = variants.map((variant, index) =>
-      index === variantIndex
-        ? { ...variant, images: uploadedImages }
-        : variant
-    );
-    onVariantUpdate(updatedVariants);
-  };
-
-  // ✅ Fixed remove image handler
-  const removeImage = (variantIndex, imageIndex) => {
-    const updatedVariants = [...variants];
-    const imageToRemove = updatedVariants[variantIndex].images[imageIndex];
-
-    // If it was a blob URL, revoke it to free memory
-    if (imageToRemove?.url && imageToRemove.url.startsWith('blob:')) {
-      URL.revokeObjectURL(imageToRemove.url);
+  // 🔹 New delete variant using API
+  const handleDeleteVariant = async (variantId) => {
+    console.log(productId, variantId,'productId, variantId)');
+    
+    try {
+      const res = await deleteVariantAPI(productId, variantId);
+      onVariantUpdate(res.product.variants); // ✅ update parent with latest product variants
+    } catch (err) {
+      console.error("Delete variant failed:", err);
     }
-
-    // Remove the image from the array
-    updatedVariants[variantIndex].images = 
-      updatedVariants[variantIndex].images.filter((_, index) => index !== imageIndex);
-
-    onVariantUpdate(updatedVariants);
   };
+
 
   return (
     <div className="variants-container">
       {variants.map((variant, variantIndex) => (
         <VariantItem
-          key={`${productId}-variant-${variantIndex}-${variant.color || variantIndex}`}
+          key={`${productId}-variant-${variant._id}`}  // ✅ use DB _id instead of index
           variant={variant}
           variantIndex={variantIndex}
           productId={productId}
           isExpanded={isVariantExpanded(variantIndex)}
           onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
-          onDelete={() => deleteVariant(variantIndex)}
+          onDelete={() => handleDeleteVariant(variant._id)}  // ✅ pass _id not index
           onUpdateStock={onUpdateStock}
           onImageUpload={onImageUpload}
           onRemoveImage={onRemoveImage}

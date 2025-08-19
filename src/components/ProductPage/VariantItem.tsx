@@ -17,6 +17,8 @@ const VariantItem = ({
   onRemoveImage
 }) => {
   return (
+
+
     <div className={`variant-item ${isExpanded ? 'expanded' : 'compact'}`}>
       <div className="variant-header">
         <div className="variant-info">
@@ -43,7 +45,7 @@ const VariantItem = ({
             title={isExpanded ? "Collapse variant" : "Expand variant"}
           >
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+            <span>{isExpanded ? 'Collapse' : 'Images & Stock Update'}</span>
           </button>
           <button 
             className="variant-delete-btn"

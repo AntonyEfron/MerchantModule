@@ -32,7 +32,6 @@ const AddVariantSection = ({
     // close the form
     setAddingVariant(false);
   };
-  // console.log(variants.length,'variantsvariants');
   
 
   return (
@@ -52,7 +51,7 @@ const AddVariantSection = ({
             onClick={() => setShowImageGallery(!showImageGallery)}
           >
             <ImageIcon size={16} />
-            <span>{showImageGallery ? 'Hide Images' : 'Show Image'}</span>
+            <span>{showImageGallery ? 'Images & Stock Update' : 'Images & Stock Update'}</span>
           </button>
         )}
 

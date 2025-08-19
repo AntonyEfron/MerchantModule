@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit3, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import ProductHeader from './ProductHeader';
+import { deleteProduct, updateStock } from '../../api/products'; 
 import ProductDescription from './ProductDescription';
 import VariantsList from './VariantsList';
 import AddVariantSection from './AddVariantSection';
@@ -14,7 +15,7 @@ const ProductItem = ({
   onDelete, 
   onImageUpload, 
   onRemoveImage, 
-  onSaveProductChanges // ✅ Receive the function from parent
+  onSaveProductChanges 
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [tempProductData, setTempProductData] = useState({});
@@ -23,18 +24,63 @@ const ProductItem = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // New state for tracking stock changes
   const [hasStockChanges, setHasStockChanges] = useState(false);
   const [tempVariants, setTempVariants] = useState(product.variants);
 
+  // ✅ track only changed stocks
+  const [changedStocks, setChangedStocks] = useState([]);
+
   useEffect(() => {
     setTempVariants(product.variants);
+    setChangedStocks([]); // reset changes if product updates
   }, [product]);
 
-  const toggleProductEdit = () => {
-    if (isEditing) return; // if already editing, do nothing
+  // ✅ Save only changed stocks
+  const saveStockChanges = async () => {
+    if (changedStocks.length === 0) return;
 
-    // load initial values into temp state
+    try {
+      setIsLoading(true);
+      setError("");
+
+      for (const change of changedStocks) {
+        const { variantId, size, stock } = change;
+        await updateStock(product._id || product.id, variantId, size, stock);
+      }
+
+      // ✅ Update UI
+      const updatedProduct = { ...product, variants: tempVariants };
+      updateProducts(updatedProduct);
+
+      // Reset tracking
+      setHasStockChanges(false);
+      setChangedStocks([]);
+
+    } catch (err) {
+      console.error("Error updating stock:", err);
+      setError(err.message || "Failed to update stock");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    try {
+      setIsLoading(true);
+      const res = await deleteProduct(product._id || product.id);
+      if (onDelete) {
+        onDelete(product._id || product.id);
+      }
+    } catch (err) {
+      console.error("Failed to delete product:", err);
+      setError("Failed to delete product");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleProductEdit = () => {
+    if (isEditing) return;
     setTempProductData({
       name: product.name,
       description: product.description
@@ -43,15 +89,12 @@ const ProductItem = ({
     setError('');
   };
 
-  // ✅ Modified to use parent function
   const saveProductChanges = async () => {
     setIsLoading(true);
     setError('');
    
     try {
       const result = await onSaveProductChanges(product, tempProductData);
-      console.log();
-      
       if (result.success) {
         setTempProductData({});
         setIsEditing(false);
@@ -70,35 +113,39 @@ const ProductItem = ({
     setError('');
   };
 
-const handleVariantUpdate = (updatedVariants) => {
-  const updatedProduct = { ...product, variants: updatedVariants };
-  updateProducts(updatedProduct);
-  setTempVariants(updatedVariants);
-  setHasStockChanges(false);
-};
+  const handleVariantUpdate = (updatedVariants) => {
+    const updatedProduct = { ...product, variants: updatedVariants };
+    updateProducts(updatedProduct);
+    setTempVariants(updatedVariants);
+    setHasStockChanges(false);
+    setChangedStocks([]);
+  };
 
-  // New function to handle stock updates temporarily
+  // ✅ Track changed stock
   const handleStockUpdate = (variantIndex, sizeIndex, increment) => {
     const updatedVariants = [...tempVariants];
     const currentStock = updatedVariants[variantIndex].sizes[sizeIndex].stock;
     const newStock = Math.max(0, currentStock + increment);
+
     updatedVariants[variantIndex].sizes[sizeIndex].stock = newStock;
-    
     setTempVariants(updatedVariants);
+
+    const variantId = updatedVariants[variantIndex]._id;
+    const size = updatedVariants[variantIndex].sizes[sizeIndex].size;
+
+    // ✅ Add to changedStocks (replace if already exists)
+    setChangedStocks(prev => {
+      const filtered = prev.filter(c => !(c.variantId === variantId && c.size === size));
+      return [...filtered, { variantId, size, stock: newStock }];
+    });
+
     setHasStockChanges(true);
   };
 
-  // Function to save stock changes
-  const saveStockChanges = () => {
-    const updatedProduct = { ...product, variants: tempVariants };
-    updateProducts(updatedProduct);
-    setHasStockChanges(false);
-  };
-
-  // Function to cancel stock changes
   const cancelStockChanges = () => {
     setTempVariants(product.variants);
     setHasStockChanges(false);
+    setChangedStocks([]);
   };
 
   const updateTempProductData = (field, value) => {
@@ -127,64 +174,36 @@ const handleVariantUpdate = (updatedVariants) => {
         tempData={tempProductData}
         totalStock={getTotalStock(hasStockChanges ? tempVariants : product.variants)}
         onEdit={toggleProductEdit}
-        onSave={saveProductChanges} // ✅ Uses the modified function
-        onDelete={() => onDelete(product.id)}
+        onSave={saveProductChanges}
+        onDelete={handleDeleteProduct}
         onUpdateTempData={updateTempProductData}
         onCancel={cancelEdit}
         isLoading={isLoading}
         error={error}
+        variants={product.variants}
       />
       
-      {/* Error message display */}
       {error && (
         <div className="error-message">
           <span className="error-text">⚠️ {error}</span>
         </div>
       )}
 
-      {/* Stock Update Controls - Show when there are unsaved stock changes */}
-      {hasStockChanges && (
-        <div className="stock-update-controls">
-          <div className="stock-update-message">
-            <span>⚠️ You have unsaved stock changes</span>
-          </div>
-          <div className="stock-update-buttons">
-            <button 
-              className="save-stock-btn"
-              onClick={saveStockChanges}
-            >
-              Update Stock
-            </button>
-            <button 
-              className="cancel-stock-btn"
-              onClick={cancelStockChanges}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Show description only when variants are shown or when editing */}
-
-
-
-      {/* Modified AddVariantSection with Show Variants button */}
-          <AddVariantSection
-            productId={product.id ||product._id }
-            isAddingVariant={addingVariant}
-            setAddingVariant={setAddingVariant}
-            variants={hasStockChanges ? tempVariants : product.variants}
-            onVariantUpdate={handleVariantUpdate}
-            onUpdateStock={handleStockUpdate}
-            showVariants={showVariants}
-            onToggleShowVariants={toggleShowVariants}
-            onImageUpload={onImageUpload}
-            onRemoveImage={onRemoveImage}
-            updateProducts={updateProducts} // ✅ pass this down
-          />
+      <AddVariantSection
+        productId={product.id || product._id }
+        isAddingVariant={addingVariant}
+        setAddingVariant={setAddingVariant}
+        variants={hasStockChanges ? tempVariants : product.variants}
+        onVariantUpdate={handleVariantUpdate}
+        onUpdateStock={handleStockUpdate}
+        showVariants={showVariants}
+        onToggleShowVariants={toggleShowVariants}
+        onImageUpload={onImageUpload}
+        onRemoveImage={onRemoveImage}
+        updateProducts={updateProducts}
+      />
           
-            {(showVariants || isEditing) && (
+      {(showVariants || isEditing) && (
         <ProductDescription
           product={product}
           isEditing={isEditing}
@@ -194,8 +213,6 @@ const handleVariantUpdate = (updatedVariants) => {
         />
       )}
 
-
-            {/* Show variants only when showVariants is true */}
       {showVariants && (
         <VariantsList
           variants={hasStockChanges ? tempVariants : product.variants}
@@ -205,6 +222,30 @@ const handleVariantUpdate = (updatedVariants) => {
           onImageUpload={onImageUpload}
           onRemoveImage={onRemoveImage}
         />
+      )}
+
+      {hasStockChanges && (
+        <div className="stock-update-controls">
+          <div className="stock-update-message">
+            <span>You have unsaved stock changes</span>
+          </div>
+          <div className="stock-update-buttons">
+            <button 
+              className="save-stock-btn"
+              onClick={saveStockChanges}
+              disabled={isLoading}
+            >
+              {isLoading ? "Updating..." : "Update Stock"}
+            </button>
+            <button 
+              className="cancel-stock-btn"
+              onClick={cancelStockChanges}
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div> 
   );

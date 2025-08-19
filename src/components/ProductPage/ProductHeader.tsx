@@ -1,6 +1,8 @@
 import React from 'react';
 import { Edit3, Trash2, X, Save, Loader } from 'lucide-react';
+import { getStockStatus } from './utils/stockUtils';
 import './styles/ProductHeader.css';
+
 
 const ProductHeader = ({
   product,
@@ -13,11 +15,12 @@ const ProductHeader = ({
   onCancel,
   isLoading = false,
   onSave,
-  error=''
+  error = '',
+  variants = [] // 👈 use variants prop
 }) => {
 
-// console.log(product.category);
-
+  console.log(product,'productproduct');
+  
   return (
     <div className="product-header">
       <div className="product-info">
@@ -36,38 +39,69 @@ const ProductHeader = ({
           ) : (
             <h3 className="product-name">{product.name}</h3>
           )}
+
           <div className="product-meta">
-        <span className="product-category">
-          {product.category || product.categoryId?.name }
-        </span>
-        <span className="product-brand">
-          {product.brand || product.brandId?.name }
-        </span>
+                        <span className="product-brand">
+              {product.brand || product.brandId?.name}
+            </span>
+            <span className="product-category">
+              {product.category || product.categoryId?.name}
+            </span>
+
+
+                      <div className="pricing-info">
+            <span className="product-category">{product.subCategory || ''}</span>
+            <span className="product-category">{product.subSubCategory || '0.00'}</span>
+            {/* <span className="product-meta">{variant.discount || 0}% OFF</span> */}
+          </div>
+
+            {/* ✅ Compact sizes from variants */}
+            {variants.length === 1 && (
+              <div className="compact-sizes">
+                {variants[0].sizes?.map((sizeData, sizeIndex) =>
+                  sizeData.size ? (
+                    <div
+                      key={sizeIndex}
+                      className={`compact-size-item ${getStockStatus(sizeData.stock)}`}
+                    >
+                      <span className="size-label">{sizeData.size}</span>
+                      <span
+                        className={`stock-count ${getStockStatus(sizeData.stock)}`}
+                      >
+                        {sizeData.stock}
+                      </span>
+                    </div>
+                  ) : null
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Action Buttons */}
       <div className="action-buttons">
         {isEditing ? (
           <>
-          <button 
-            className="save-btn" 
-            onClick={onSave}   // ✅ changed from onEdit
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader size={16} className="spinner" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Save size={16} />
-                <span>Save</span>
-              </>
-            )}
-          </button>
-            <button 
-              className="cancel-btn" 
+            <button
+              className="save-btn"
+              onClick={onSave}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader size={16} className="spinner" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Save</span>
+                </>
+              )}
+            </button>
+            <button
+              className="cancel-btn"
               onClick={onCancel}
               disabled={isLoading}
             >

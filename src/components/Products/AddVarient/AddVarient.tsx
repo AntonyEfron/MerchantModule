@@ -374,7 +374,7 @@ const handleSubmit = async (e) => {
               />
               <label htmlFor="image-upload" className="file-input-label">
                 <span className="file-input-icon">📸</span>
-                <div>Click to upload images or drag and drop</div>
+                <div>Click to upload images or drag and drop (Max 5 images)</div>
                 <div
                   style={{
                     fontSize: "0.875rem",

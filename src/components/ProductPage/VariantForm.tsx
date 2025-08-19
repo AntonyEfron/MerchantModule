@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { Save, X } from 'lucide-react';
 import DynamicSizesInput from './DynamicSizesInput';
-import ImageCropper from './ImageCropper';
+import { addVariant, updateVariant } from "../../api/products";
+import CropperModal from '../../components/utils/CropperModal';
 import './styles/VariantForm.css';
 
-const VariantForm = ({ productId, onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({
+const VariantForm = ({ productId, onSubmit, onCancel, product, selectedVariantIndex, fetchProduct }) => {
+  const [variantForm, setVariantForm] = useState({
     color: { name: '', hex: '#000000' },
     sizes: [{ size: '', stock: 0 }],
     mrp: '',
@@ -14,10 +15,14 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
     discount: '',
     images: []
   });
-  const [cropImage, setCropImage] = useState(null);
+  const [previewQueue, setPreviewQueue] = useState([]);
+  const [showCropper, setShowCropper] = useState(false);
+
+  console.log(productId,'productIdproductIdproductId');
+  
 
   const handleFormChange = (field, value) => {
-    setFormData(prev => ({
+    setVariantForm(prev => ({
       ...prev,
       [field]: value
     }));
@@ -25,7 +30,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
 
   const handleColorChange = (e) => {
     const hex = e.target.value;
-    setFormData(prev => ({
+    setVariantForm(prev => ({
       ...prev,
       color: { ...prev.color, hex }
     }));
@@ -37,59 +42,121 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setCropImage({
+        // Add to preview queue instead of setting cropImage directly
+        setPreviewQueue(prev => [...prev, {
           src: e.target.result,
           file: file
-        });
+        }]);
+        
+        // Show cropper if not already showing
+        if (!showCropper) {
+          setShowCropper(true);
+        }
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const onCropComplete = (croppedImageUrl) => {
-    setFormData(prev => ({
+const handleCropComplete = (blob) => {
+  if (!(blob instanceof Blob)) return;
+
+  // Create a File from the blob
+  const file = new File([blob], `variant-${Date.now()}.jpg`, { type: "image/jpeg" });
+  const objectUrl = URL.createObjectURL(file);
+
+  setVariantForm((prev) => {
+    const updatedImages = [
+      ...(prev.images || []),
+      {
+        url: objectUrl,
+        file: file, // now it's a File, not just a Blob
+      },
+    ];
+    return {
       ...prev,
-      images: [...prev.images, { url: croppedImageUrl }]
-    }));
-    setCropImage(null);
+      images: updatedImages,
+      mainImage: updatedImages[0],
+    };
+  });
+
+  // Remove the first item from preview queue
+  setPreviewQueue((prev) => {
+    const [, ...rest] = prev;
+    if (rest.length === 0) {
+      setShowCropper(false);
+    }
+    return rest;
+  });
+};
+
+  const handleCropperClose = () => {
+    setShowCropper(false);
+    setPreviewQueue([]);
   };
 
   const removeImage = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
+    setVariantForm(prev => {
+      const updatedImages = prev.images.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        images: updatedImages,
+        mainImage: updatedImages[0] || null,
+      };
+    });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    if (!formData.color.name || !formData.price) {
-      alert('Please fill in required fields');
-      return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const formData = new FormData();
+    formData.append("color", JSON.stringify(variantForm.color));
+    formData.append("sizes", JSON.stringify(variantForm.sizes));
+    formData.append("mrp", Number(variantForm.mrp));
+    formData.append("price", Number(variantForm.price));
+    formData.append("discount", Number(variantForm.discount));
+
+    variantForm.images.forEach((imgObj) => {
+      if (imgObj.file instanceof Blob) {
+        formData.append("images", imgObj.file);
+      }
+    });
+
+    let response;
+    if (selectedVariantIndex !== null) {
+      // ✅ add new variant
+      response = await addVariant(productId, formData);
+    } else {
+      // later can add updateVariant(productId, variantId, formData)
     }
 
-    const newVariant = {
-      color: formData.color,
-      sizes: formData.sizes.filter(s => s.size && s.stock >= 0),
-      mrp: parseFloat(formData.mrp) || 0,
-      price: parseFloat(formData.price) || 0,
-      discount: parseInt(formData.discount) || 0,
-      images: formData.images
-    };
+    if (response?.product) {
+      alert("✅ Variant added successfully!");
 
-    onSubmit(newVariant);
-  };
+      // 🔑 Pass the updated product to parent
+      if (onSubmit) onSubmit(response.product);
+
+      // Reset form + disable
+      setVariantForm({
+        color: { name: '', hex: '#000000' },
+        sizes: [{ size: '', stock: 0 }],
+        mrp: '',
+        price: '',
+        discount: '',
+        images: []
+      });
+      setPreviewQueue([]);
+      setShowCropper(false);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ Failed to save variant.");
+  }
+};
+
+
 
   return (
     <>
-      {cropImage && (
-        <ImageCropper
-          src={cropImage.src}
-          onCropComplete={onCropComplete}
-          onCancel={() => setCropImage(null)}
-        />
-      )}
 
       <div className="variant-form-container">
         <form onSubmit={handleSubmit} className="variant-form">
@@ -100,11 +167,11 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
               <div className="color-inputs">
                 <input
                   type="text"
-                  value={formData.color.name}
+                  value={variantForm.color.name}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      color: { ...formData.color, name: e.target.value },
+                    setVariantForm({
+                      ...variantForm,
+                      color: { ...variantForm.color, name: e.target.value },
                     })
                   }
                   placeholder="Color Name"
@@ -113,7 +180,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
                 />
                 <input
                   type="color"
-                  value={formData.color.hex}
+                  value={variantForm.color.hex}
                   onChange={handleColorChange}
                   className="color-preview"
                   title="Select color"
@@ -122,7 +189,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
             </div>
 
             <DynamicSizesInput 
-              sizes={formData.sizes} 
+              sizes={variantForm.sizes} 
               setSizes={(sizes) => handleFormChange('sizes', sizes)} 
             />
 
@@ -132,7 +199,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
                 <label className="form-label">Maximum Retail Price (MRP)</label>
                 <input
                   type="number"
-                  value={formData.mrp}
+                  value={variantForm.mrp}
                   onChange={(e) => handleFormChange('mrp', e.target.value)}
                   className="form-input"
                   placeholder="Enter MRP"
@@ -145,7 +212,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
                 <label className="form-label">Selling Price *</label>
                 <input
                   type="number"
-                  value={formData.price}
+                  value={variantForm.price}
                   onChange={(e) => handleFormChange('price', e.target.value)}
                   className="form-input"
                   placeholder="Enter selling price"
@@ -159,7 +226,7 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
                 <label className="form-label">Discount Percentage</label>
                 <input
                   type="number"
-                  value={formData.discount}
+                  value={variantForm.discount}
                   onChange={(e) => handleFormChange('discount', e.target.value)}
                   className="form-input"
                   placeholder="Enter discount %"
@@ -193,9 +260,9 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
             </div>
 
             {/* Image Preview Grid */}
-            {formData.images?.length > 0 && (
+            {variantForm.images?.length > 0 && (
               <div className="image-preview-grid">
-                {formData.images.map((img, i) => (
+                {variantForm.images.map((img, i) => (
                   <div key={i} className="image-preview-item">
                     <img
                       src={img.url}
@@ -218,16 +285,23 @@ const VariantForm = ({ productId, onSubmit, onCancel }) => {
               </div>
             )}
           </div>
+          {showCropper && previewQueue.length > 0 && (
+        <CropperModal
+          imageSrc={previewQueue[0].src}
+          onClose={handleCropperClose}
+          onCropComplete={handleCropComplete}
+        />
+      )}
 
           {/* Submit Button */}
           <div className="form-actions">
             <button
               type="submit"
               className="btn-primary"
-              disabled={!formData.price || !formData.color.name}
+              disabled={!variantForm.price || !variantForm.color.name}
             >
               <Save size={16} />
-              Add Product Variant
+              {selectedVariantIndex !== null ? "Update Product Variant" : "Add Product Variant"}
             </button>
           </div>
         </form>

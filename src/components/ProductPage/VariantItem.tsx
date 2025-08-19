@@ -25,7 +25,7 @@ const VariantItem = ({
             style={{backgroundColor: variant.color?.hex || variant.color}}
           ></div>
           <span className="variant-color">
-            {variant.color?.name || variant.color}
+            {typeof variant.color === "object" ? variant.color.name : variant.color}
           </span>
           <span className="variant-stock-summary">
             {variant.sizes.reduce((total, size) => total + size.stock, 0)} units

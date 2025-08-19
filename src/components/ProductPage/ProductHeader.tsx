@@ -15,6 +15,9 @@ const ProductHeader = ({
   onSave,
   error=''
 }) => {
+
+// console.log(product.category);
+
   return (
     <div className="product-header">
       <div className="product-info">
@@ -34,12 +37,12 @@ const ProductHeader = ({
             <h3 className="product-name">{product.name}</h3>
           )}
           <div className="product-meta">
-            <span className="product-category">
-              {product.category || product.categoryId.name}
-            </span>
-            <span className="product-brand">
-              {product.brand || product.brandId.name}
-            </span>
+        <span className="product-category">
+          {product.category || product.categoryId?.name }
+        </span>
+        <span className="product-brand">
+          {product.brand || product.brandId?.name }
+        </span>
           </div>
         </div>
       </div>

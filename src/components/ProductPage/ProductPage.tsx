@@ -12,6 +12,9 @@ const ProductPage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // console.log(products,'productsproductsproducts');
+  
+
   // Fetch products for merchant
   useEffect(() => {
     const merchantData = localStorage.getItem('merchant');
@@ -24,7 +27,7 @@ const ProductPage = () => {
     const loadProducts = async () => {
       try {
         const data = await fetchProductsByMerchantId(merchant.id);
-        console.log(data, 'datadatadatadatadata');
+        // console.log(merchant.id, 'merchant.idmerchant.idmerchant.id');
         setProducts(data);
       } catch (error) {
         console.error('Failed to load products:', error);
@@ -64,6 +67,8 @@ const ProductPage = () => {
   };
 
   const handleImageUpload = async (file, productId, variantIndex) => {
+    console.log(file,'filefilefile');
+    
     try {
       const uploadedImageResponse = await uploadImage(file, productId, variantIndex);
       setProducts(prevProducts =>
@@ -126,7 +131,7 @@ const ProductPage = () => {
         const updatedId = updatedProduct._id || updatedProduct.id;
         
         if (productId === updatedId) {
-          console.log('Replacing product:', p, 'with:', updatedProduct);
+          // console.log('Replacing product:', p, 'with:', updatedProduct);
           return updatedProduct; // Return the updated product directly
         }
         return p;
@@ -140,12 +145,17 @@ const ProductPage = () => {
     );
   };
 
+
   // Filter products based on search term
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.brandId?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.categoryId?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+const filteredProducts = products.filter(product =>
+  product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  (product.brand?.toLowerCase?.() || product.brandId?.name?.toLowerCase?.() || '').includes(searchTerm.toLowerCase()) ||
+  (product.category?.toLowerCase?.() || product.categoryId?.name?.toLowerCase?.() || '').includes(searchTerm.toLowerCase())
+);
+
+
+  // console.log(filteredProducts[0]);
+  
 
   const clearSearch = () => setSearchTerm('');
 

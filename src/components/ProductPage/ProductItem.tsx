@@ -70,13 +70,12 @@ const ProductItem = ({
     setError('');
   };
 
-  const handleVariantUpdate = (updatedVariants) => {
-    const updatedProduct = { ...product, variants: updatedVariants };
-    updateProducts(updatedProduct);
-    // Reset temp variants and stock changes flag
-    setTempVariants(updatedVariants);
-    setHasStockChanges(false);
-  };
+const handleVariantUpdate = (updatedVariants) => {
+  const updatedProduct = { ...product, variants: updatedVariants };
+  updateProducts(updatedProduct);
+  setTempVariants(updatedVariants);
+  setHasStockChanges(false);
+};
 
   // New function to handle stock updates temporarily
   const handleStockUpdate = (variantIndex, sizeIndex, increment) => {
@@ -167,7 +166,25 @@ const ProductItem = ({
       )}
 
       {/* Show description only when variants are shown or when editing */}
-      {(showVariants || isEditing) && (
+
+
+
+      {/* Modified AddVariantSection with Show Variants button */}
+          <AddVariantSection
+            productId={product.id ||product._id }
+            isAddingVariant={addingVariant}
+            setAddingVariant={setAddingVariant}
+            variants={hasStockChanges ? tempVariants : product.variants}
+            onVariantUpdate={handleVariantUpdate}
+            onUpdateStock={handleStockUpdate}
+            showVariants={showVariants}
+            onToggleShowVariants={toggleShowVariants}
+            onImageUpload={onImageUpload}
+            onRemoveImage={onRemoveImage}
+            updateProducts={updateProducts} // ✅ pass this down
+          />
+          
+            {(showVariants || isEditing) && (
         <ProductDescription
           product={product}
           isEditing={isEditing}
@@ -177,7 +194,8 @@ const ProductItem = ({
         />
       )}
 
-      {/* Show variants only when showVariants is true */}
+
+            {/* Show variants only when showVariants is true */}
       {showVariants && (
         <VariantsList
           variants={hasStockChanges ? tempVariants : product.variants}
@@ -188,20 +206,6 @@ const ProductItem = ({
           onRemoveImage={onRemoveImage}
         />
       )}
-
-      {/* Modified AddVariantSection with Show Variants button */}
-      <AddVariantSection
-        productId={product.id}
-        isAddingVariant={addingVariant}
-        setAddingVariant={setAddingVariant}
-        variants={hasStockChanges ? tempVariants : product.variants}
-        onVariantUpdate={handleVariantUpdate}
-        onUpdateStock={handleStockUpdate}
-        showVariants={showVariants}
-        onToggleShowVariants={toggleShowVariants}
-        onImageUpload={onImageUpload}
-        onRemoveImage={onRemoveImage}
-      />
     </div> 
   );
 };

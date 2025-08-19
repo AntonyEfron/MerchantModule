@@ -15,7 +15,8 @@ const AddVariantSection = ({
   onToggleShowVariants,
   onImageUpload,
   onRemoveImage,
-  onUpdateStock // This now comes from ProductItem for stock updates
+  onUpdateStock,
+  updateProducts // <-- add here
 }) => {
   const [showImageGallery, setShowImageGallery] = useState(false);
 
@@ -23,11 +24,16 @@ const AddVariantSection = ({
     setAddingVariant(!isAddingVariant);
   };
 
-  const handleVariantSubmit = (newVariant) => {
-    const updatedVariants = [...variants, newVariant];
-    onVariantUpdate(updatedVariants);
+  const handleVariantSubmit = (updatedProduct) => {
+    // 🔑 update local state
+    onVariantUpdate(updatedProduct.variants);
+    // 🔑 update global products list
+    updateProducts(updatedProduct);
+    // close the form
     setAddingVariant(false);
   };
+  // console.log(variants.length,'variantsvariants');
+  
 
   return (
     <div className="add-variant-section">
@@ -63,6 +69,7 @@ const AddVariantSection = ({
           productId={productId}
           onSubmit={handleVariantSubmit}
           onCancel={() => setAddingVariant(false)}
+          selectedVariantIndex={variants.length}
         />
       )}
 

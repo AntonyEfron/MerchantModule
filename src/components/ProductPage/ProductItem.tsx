@@ -6,6 +6,7 @@ import { deleteProduct, updateStock } from '../../api/products';
 import ProductDescription from './ProductDescription';
 import VariantsList from './VariantsList';
 import AddVariantSection from './AddVariantSection';
+import { useConfirmDialog } from "../../context/ConfirmDialogContext";
 import './styles/ProductItem.css';
 
 const ProductItem = ({ 
@@ -26,6 +27,8 @@ const ProductItem = ({
 
   const [hasStockChanges, setHasStockChanges] = useState(false);
   const [tempVariants, setTempVariants] = useState(product.variants);
+
+   const { openConfirm } = useConfirmDialog();
 
   // ✅ track only changed stocks
   const [changedStocks, setChangedStocks] = useState([]);
@@ -67,7 +70,7 @@ const ProductItem = ({
   const handleDeleteProduct = async () => {
     try {
       setIsLoading(true);
-      const res = await deleteProduct(product._id || product.id);
+      await deleteProduct(product._id || product.id);
       if (onDelete) {
         onDelete(product._id || product.id);
       }
@@ -167,21 +170,28 @@ const ProductItem = ({
 
   return (
     <div className="product-item">
-      <ProductHeader
-        product={product}
-        index={index}
-        isEditing={isEditing}
-        tempData={tempProductData}
-        totalStock={getTotalStock(hasStockChanges ? tempVariants : product.variants)}
-        onEdit={toggleProductEdit}
-        onSave={saveProductChanges}
-        onDelete={handleDeleteProduct}
-        onUpdateTempData={updateTempProductData}
-        onCancel={cancelEdit}
-        isLoading={isLoading}
-        error={error}
-        variants={product.variants}
-      />
+        <ProductHeader
+          product={product}
+          index={index}
+          isEditing={isEditing}
+          tempData={tempProductData}
+          totalStock={getTotalStock(hasStockChanges ? tempVariants : product.variants)}
+          onEdit={toggleProductEdit}
+          onSave={saveProductChanges}
+          onDelete={() =>
+            openConfirm({
+              title: "Confirm Deletion",
+              message: `Are you sure you want to delete "${product.name}"?`,
+              onConfirm: handleDeleteProduct,
+            })
+          }
+          onUpdateTempData={updateTempProductData}
+          onCancel={cancelEdit}
+          isLoading={isLoading}
+          error={error}
+          variants={product.variants}
+        />
+
       
       {error && (
         <div className="error-message">

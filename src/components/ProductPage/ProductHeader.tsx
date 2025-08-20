@@ -3,7 +3,6 @@ import { Edit3, Trash2, X, Save, Loader } from 'lucide-react';
 import { getStockStatus } from './utils/stockUtils';
 import './styles/ProductHeader.css';
 
-
 const ProductHeader = ({
   product,
   index,
@@ -16,13 +15,28 @@ const ProductHeader = ({
   isLoading = false,
   onSave,
   error = '',
-  variants = [] // 👈 use variants prop
+  variants = []
 }) => {
+  // ✅ First product image (from variant[0] or fallback product.image)
+  const firstVariantImage =
+    product?.variants?.[0]?.images?.[0]?.url || product.image || '';
 
-  console.log(product,'productproduct');
-  
   return (
     <div className="product-header">
+      {/* ✅ Product Image */}
+      <div className="product-image-container">
+        {firstVariantImage ? (
+          <img
+            src={firstVariantImage}
+            alt={product.name}
+            className="product-thumbnail"
+          />
+        ) : (
+          <div className="product-thumbnail placeholder">No Image</div>
+        )}
+      </div>
+
+      {/* ✅ Product Info */}
       <div className="product-info">
         <span className="product-number">{index + 1}.</span>
         <div className="product-details">
@@ -41,37 +55,44 @@ const ProductHeader = ({
           )}
 
           <div className="product-meta">
-                        <span className="product-brand">
+            <span className="product-brand">
               {product.brand || product.brandId?.name}
             </span>
             <span className="product-category">
               {product.category || product.categoryId?.name}
             </span>
 
+            <div className="pricing-info">
+              <span className="product-category">
+                {product.subCategory || ''}
+              </span>
+              <span className="product-category">
+                {product.subSubCategory || '0.00'}
+              </span>
+            </div>
 
-                      <div className="pricing-info">
-            <span className="product-category">{product.subCategory || ''}</span>
-            <span className="product-category">{product.subSubCategory || '0.00'}</span>
-            {/* <span className="product-meta">{variant.discount || 0}% OFF</span> */}
-          </div>
-
-            {/* ✅ Compact sizes from variants */}
+            {/* ✅ Compact sizes (only show sizes, not variant images) */}
             {variants.length === 1 && (
               <div className="compact-sizes">
-                {variants[0].sizes?.map((sizeData, sizeIndex) =>
-                  sizeData.size ? (
-                    <div
-                      key={sizeIndex}
-                      className={`compact-size-item ${getStockStatus(sizeData.stock)}`}
-                    >
-                      <span className="size-label">{sizeData.size}</span>
-                      <span
-                        className={`stock-count ${getStockStatus(sizeData.stock)}`}
+                {variants[0].sizes?.map(
+                  (sizeData, sizeIndex) =>
+                    sizeData.size && (
+                      <div
+                        key={sizeIndex}
+                        className={`compact-size-item ${getStockStatus(
+                          sizeData.stock
+                        )}`}
                       >
-                        {sizeData.stock}
-                      </span>
-                    </div>
-                  ) : null
+                        <span className="size-label">{sizeData.size}</span>
+                        <span
+                          className={`stock-count ${getStockStatus(
+                            sizeData.stock
+                          )}`}
+                        >
+                          {sizeData.stock}
+                        </span>
+                      </div>
+                    )
                 )}
               </div>
             )}
@@ -79,15 +100,11 @@ const ProductHeader = ({
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* ✅ Action Buttons */}
       <div className="action-buttons">
         {isEditing ? (
           <>
-            <button
-              className="save-btn"
-              onClick={onSave}
-              disabled={isLoading}
-            >
+            <button className="edit-btn" onClick={onSave} disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader size={16} className="spinner" />
@@ -101,7 +118,7 @@ const ProductHeader = ({
               )}
             </button>
             <button
-              className="cancel-btn"
+              className="delete-btn"
               onClick={onCancel}
               disabled={isLoading}
             >

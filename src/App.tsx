@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ConfirmDialogProvider } from "./context/ConfirmDialogContext";
 
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';
@@ -60,6 +61,7 @@ function AppRoot() {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <ConfirmDialogProvider>
         <Router>
           <AppLayout>
             <Routes>
@@ -81,6 +83,7 @@ function AppRoot() {
             </Routes>
           </AppLayout>
         </Router>
+        </ConfirmDialogProvider>
       </NotificationProvider>
     </AuthProvider>
   );

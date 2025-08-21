@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import OnlineToggle from "./utils/OnlineToggle";
+// import { useAuth } from "../context/AuthContext";
 
 interface SidebarProps {
   onLogout: () => void;
@@ -10,6 +12,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, onToggle }) => {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  //get merchantiD from localStorage
+  const merchantData = JSON.parse(localStorage.getItem("merchant"));
+console.log(merchantData?.id);
+const merchantId = merchantData?.id;
+  
 
   useEffect(() => {
     const checkMobile = () => {
@@ -281,6 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, onToggle }) => {
   return (
     <div style={sidebarStyle}>
       <div style={headerStyle}>
+        <OnlineToggle merchantId={merchantId} />
         <button
           onClick={handleToggle}
           style={toggleButtonStyle}

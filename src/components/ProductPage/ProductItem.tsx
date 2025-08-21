@@ -39,33 +39,33 @@ const ProductItem = ({
   }, [product]);
 
   // ✅ Save only changed stocks
-  const saveStockChanges = async () => {
-    if (changedStocks.length === 0) return;
+const saveStockChanges = async () => {
+  if (changedStocks.length === 0) return;
 
-    try {
-      setIsLoading(true);
-      setError("");
+  try {
+    setIsLoading(true);
+    setError("");
 
-      for (const change of changedStocks) {
-        const { variantId, size, stock } = change;
-        await updateStock(product._id || product.id, variantId, size, stock);
-      }
-
-      // ✅ Update UI
-      const updatedProduct = { ...product, variants: tempVariants };
-      updateProducts(updatedProduct);
-
-      // Reset tracking
-      setHasStockChanges(false);
-      setChangedStocks([]);
-
-    } catch (err) {
-      console.error("Error updating stock:", err);
-      setError(err.message || "Failed to update stock");
-    } finally {
-      setIsLoading(false);
+    for (const change of changedStocks) {
+      if (!change.size) continue; // ✅ skip empty rows
+      const { variantId, size, stock } = change;
+      await updateStock(product._id || product.id, variantId, size, stock);
     }
-  };
+
+    const updatedProduct = { ...product, variants: tempVariants };
+    updateProducts(updatedProduct);
+
+    setHasStockChanges(false);
+    setChangedStocks([]);
+
+  } catch (err) {
+    console.error("Error updating stock:", err);
+    setError(err.message || "Failed to update stock");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleDeleteProduct = async () => {
     try {
@@ -145,6 +145,22 @@ const ProductItem = ({
     setHasStockChanges(true);
   };
 
+const handleSizesChanged = (updatedVariants) => {
+  setTempVariants(updatedVariants);
+
+  // Collect changes from *all variants*, not just the first
+  const allChanges = updatedVariants.flatMap(variant =>
+    variant.sizes.map(sizeObj => ({
+      variantId: variant._id,
+      size: sizeObj.size,
+      stock: sizeObj.stock
+    }))
+  );
+
+  setChangedStocks(allChanges);
+  setHasStockChanges(true);
+};
+
   const cancelStockChanges = () => {
     setTempVariants(product.variants);
     setHasStockChanges(false);
@@ -167,6 +183,8 @@ const ProductItem = ({
   const toggleShowVariants = () => {
     setShowVariants(!showVariants);
   };
+  // console.log(product.variants[0]._id,'productIdproductId');
+
 
   return (
     <div className="product-item">
@@ -203,7 +221,7 @@ const ProductItem = ({
         productId={product.id || product._id }
         isAddingVariant={addingVariant}
         setAddingVariant={setAddingVariant}
-        variants={hasStockChanges ? tempVariants : product.variants}
+        variants={product.variants}
         onVariantUpdate={handleVariantUpdate}
         onUpdateStock={handleStockUpdate}
         showVariants={showVariants}
@@ -211,6 +229,7 @@ const ProductItem = ({
         onImageUpload={onImageUpload}
         onRemoveImage={onRemoveImage}
         updateProducts={updateProducts}
+        
       />
           
       {(showVariants || isEditing) && (

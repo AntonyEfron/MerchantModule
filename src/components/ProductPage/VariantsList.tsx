@@ -31,22 +31,25 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onI
     }
   };
 
+// console.log(variants);
+// 
 
   return (
     <div className="variants-container">
       {variants.map((variant, variantIndex) => (
-        <VariantItem
-          key={`${productId}-variant-${variant._id}`}  // ✅ use DB _id instead of index
-          variant={variant}
-          variantIndex={variantIndex}
-          productId={productId}
-          isExpanded={isVariantExpanded(variantIndex)}
-          onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
-          onDelete={() => handleDeleteVariant(variant._id)}  // ✅ pass _id not index
-          onUpdateStock={onUpdateStock}
-          onImageUpload={onImageUpload}
-          onRemoveImage={onRemoveImage}
-        />
+      <VariantItem
+        key={`${productId}-variant-${variant._id}`}
+        variant={variant}
+        variantIndex={variantIndex}
+        productId={productId}
+        isExpanded={isVariantExpanded(variantIndex)}
+        onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
+        onDelete={() => handleDeleteVariant(variant._id)}
+        onUpdateStock={onUpdateStock}
+        onImageUpload={onImageUpload}
+        onRemoveImage={onRemoveImage}
+        onVariantUpdate={onVariantUpdate}   // ✅ pass it down
+      />
       ))}
     </div>
   );

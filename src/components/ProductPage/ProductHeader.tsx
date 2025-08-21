@@ -15,7 +15,7 @@ const ProductHeader = ({
   isLoading = false,
   onSave,
   error = '',
-  variants = []
+  variants
 }) => {
   // ✅ First product image (from variant[0] or fallback product.image)
   const firstVariantImage =
@@ -71,8 +71,23 @@ const ProductHeader = ({
               </span>
             </div>
 
+            {variants.length === 1 && (
+              <div className="pricing-info">
+                <span className="price-badge mrp">
+                  MRP: ${variants[0].mrp?.toFixed(2) || '0.00'}
+                </span>
+                <span className="price-badge selling">
+                 Selling Price: ${variants[0].price?.toFixed(2) || '0.00'}
+                </span>
+                <span className="price-badge discount">
+                  {variants[0].discount || 0}% OFF
+                </span>
+              </div>
+            )}
+
             {/* ✅ Compact sizes (only show sizes, not variant images) */}
             {variants.length === 1 && (
+            
               <div className="compact-sizes">
                 {variants[0].sizes?.map(
                   (sizeData, sizeIndex) =>

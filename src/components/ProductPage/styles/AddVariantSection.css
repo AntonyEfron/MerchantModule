@@ -66,3 +66,76 @@
     justify-content: center;
   }
 }
+.add-variant-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variant-actions {
+  flex-wrap: wrap; /* ensures buttons don’t overflow */
+}
+
+/* Buttons should stretch evenly in mobile */
+@media (max-width: 768px) {
+  .variant-actions {
+    gap: 10px;
+  }
+
+  .show-variants-btn,
+  .add-variant-btn {
+    width: 100%;   /* make buttons full width on small screens */
+    text-align: center;
+    font-size: 15px; /* slightly bigger for touch */
+  }
+}
+
+.add-size-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #f8f8f8;
+  border: 1px dashed #bbb;
+  border-radius: 6px;
+  cursor: pointer;
+  height: fit-content;
+  margin: .5rem;
+}
+
+.add-size-toggle-btn:hover {
+  background: #f0f0f0;
+}
+.pricing-info {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.price-badge {
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.price-badge.mrp {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.price-badge.selling {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.price-badge.discount {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fcd34d;
+}
+
+
+

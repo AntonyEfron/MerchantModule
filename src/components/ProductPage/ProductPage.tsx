@@ -122,7 +122,7 @@ const ProductPage = () => {
 
   // ✅ CORRECTED: Fixed updateProducts function
   const updateProducts = (updatedProduct) => {
-    console.log('Updating product:', updatedProduct);
+    // console.log('Updating product:', updatedProduct);
     
     setProducts(prevProducts =>
       prevProducts.map(p => {

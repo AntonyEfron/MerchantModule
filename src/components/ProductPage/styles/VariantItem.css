@@ -378,3 +378,95 @@
     gap: 0.25rem;
   }
 }
+.variant-item + .variant-item {
+  margin-top: 1rem;
+}
+
+/* ✅ Ensure action buttons don’t shrink on mobile */
+.variant-actions button {
+  min-width: 40px;
+  min-height: 36px;
+}
+
+/* ✅ Better alignment for expand & delete buttons on small screens */
+@media (max-width: 768px) {
+  .expand-btn,
+  .variant-delete-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 0.6rem;
+  }
+
+  .variant-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ✅ Improve compact size chips on smaller screens */
+@media (max-width: 480px) {
+  .compact-size-item {
+    flex: 1 1 calc(50% - 0.5rem);
+    justify-content: center;
+    text-align: center;
+  }
+
+  .compact-size-item .size-label,
+  .compact-size-item .stock-count {
+    font-size: 0.7rem;
+  }
+}
+
+/* ✅ Extra polish for stock controls so they don't wrap weirdly */
+@media (max-width: 480px) {
+  .stock-controls {
+    justify-content: center;
+    width: 100%;
+  }
+}
+.add-size-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #f8f8f8;
+  border: 1px dashed #bbb;
+  border-radius: 6px;
+  cursor: pointer;
+  height: fit-content;
+}
+
+.add-size-toggle-btn:hover {
+  background: #f0f0f0;
+}
+/* Small delete button inside sizes-grid-wrapper */
+.sizes-grid-wrapper {
+  position: relative; /* ensure button can be positioned inside */
+  padding-bottom: 2rem; /* give space so button doesn't overlap content */
+}
+
+.sizes-grid-delete-btn {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.sizes-grid-delete-btn:hover {
+  transform: scale(1.1);
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.35);
+}
+

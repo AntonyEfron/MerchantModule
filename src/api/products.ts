@@ -152,17 +152,36 @@ export const updateVariant = async (productId, variantId, formData) => {
   }
 };
 
-export const updateStock = async (productId, variantId, size, stock) => {
+export const updateStock = async (productId, variantId, sizeData) => {
+  const { sizeId, size, stock } = sizeData;
+
+  console.log(productId, variantId, sizeData);
+  
+
   try {
-    const res = await axiosInstance.put(
-      `merchant/updateStock/${productId}/${variantId}/${size}`,
-      { stock }
-    );
+    const url = sizeId
+      ? `merchant/updateStock/${productId}/${variantId}/${sizeId}`
+      : `merchant/updateStock/${productId}/${variantId}`;
+
+    const res = await axiosInstance.put(url, { size, stock });
     return res.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Stock update failed");
   }
 };
+
+export const deleteVariantSizes = async (productId, variantId, sizeId) => {
+  try {
+    const res = await axiosInstance.delete(
+      `/merchant/deleteSizes/${productId}/${variantId}/${sizeId}`
+    );
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Failed to delete size");
+  }
+};
+
+
 
 export const getBaseProductById = async (productId) => {
     try {

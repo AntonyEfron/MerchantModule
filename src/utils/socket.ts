@@ -1,6 +1,8 @@
 import { io, Socket } from "socket.io-client";
-
+import mitt from "mitt";
 let socket: Socket | null = null;
+
+export const emitter = mitt();
 
 export const connectSocket = (merchantId: string) => {
   socket = io("http://192.168.29.230:5000", {
@@ -17,6 +19,12 @@ export const connectSocket = (merchantId: string) => {
   socket.on("disconnect", () => {
     console.log("❌ Disconnected from socket");
   });
+
+    // 🔹 Listen for order updates globally
+    socket.on("orderUpdate", (order) => {
+      console.log("📦 Order update received:", order);
+      emitter.emit("orderUpdate", order); // re-emit for components
+    });
 
   return socket;
 };

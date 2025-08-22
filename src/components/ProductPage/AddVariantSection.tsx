@@ -3,6 +3,8 @@ import { Plus, X, ChevronDown, ChevronUp, Image as ImageIcon, Minus } from 'luci
 import VariantForm from './VariantForm';
 import ImageGallery from './ImageGallery';
 import { getStockStatus } from './utils/stockUtils';
+import { Trash2 } from 'lucide-react';
+import { deleteVariantSizes } from '../../api/products'; 
 import './styles/AddVariantSection.css';
 import AddSizeInput from './AddSizeInput'; // ✅ correct path
 
@@ -20,6 +22,19 @@ const AddVariantSection = ({
   updateProducts,
   
 }) => {
+
+  // console.log(variants);
+  
+
+  const handleDeleteSize = async (productId, variantId, sizeId) => {
+  try {
+    const updatedProduct = await deleteVariantSizes(productId, variantId, sizeId);
+    // Update parent state with refreshed product
+    onVariantUpdate(updatedProduct.product.variants);
+  } catch (err) {
+    console.error("Error deleting size:", err.message);
+  }
+};
 
 // console.log(variants);
 
@@ -80,53 +95,63 @@ const AddVariantSection = ({
       {/* Show Image Gallery + Sizes Grid */}
       {showImageGallery && variants.length === 1 && (
         <>
-          <ImageGallery
-            images={variants[0].images || []}
-            productId={productId}
-            variantIndex={0}
-            variantColor={variants[0].color || 'Default'}
-            onImageUpload={onImageUpload}
-            onRemoveImage={onRemoveImage}
-          />
+{variants.map((variant, variantIndex) => (
+  <div key={variant._id}>
+    <ImageGallery
+      images={variant.images || []}
+      productId={productId}
+      variantIndex={variantIndex}
+      variantColor={variant.color || 'Default'}
+      onImageUpload={onImageUpload}
+      onRemoveImage={onRemoveImage}
+    />
 
-          <div className="sizes-grid-wrapper">
-            <div className="sizes-grid">
-              {variants[0].sizes?.map((sizeData, sizeIndex) => (
-                <div key={sizeIndex} className={`size-item ${getStockStatus(sizeData.stock)}`}>
-                  <div className="size-info">
-                    <span className="size-label">{sizeData.size}</span>
-                    <span className={`stock-count ${getStockStatus(sizeData.stock)}`}>
-                      {sizeData.stock}
-                    </span>
-                  </div>
-                  <div className="stock-controls">
-                    <button 
-                      className="stock-btn decrease"
-                      onClick={() => onUpdateStock(0, sizeIndex, -1)}
-                      disabled={sizeData.stock === 0}
-                    >
-                      <Minus size={12} />
-                    </button>
-                    <button 
-                      className="stock-btn increase"
-                      onClick={() => onUpdateStock(0, sizeIndex, 1)}
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+    <div className="sizes-grid-wrapper">
+      <div className="sizes-grid">
+        {variant.sizes?.map((sizeData, sizeIndex) => (
+          <div key={sizeData._id} className={`size-item ${getStockStatus(sizeData.stock)}`}>
+            <div className="size-info">
+              <span className="size-label">{sizeData.size}</span>
+              <span className={`stock-count ${getStockStatus(sizeData.stock)}`}>
+                {sizeData.stock}
+              </span>
             </div>
-
-            {/* Toggle Button for DynamicSizesInput */}
-            <button 
-              className="add-size-toggle-btn"
-              onClick={() => setShowAddSize((prev) => !prev)}
+            <div className="stock-controls">
+              <button 
+                className="stock-btn decrease"
+                onClick={() => onUpdateStock(variantIndex, sizeIndex, -1)}
+                disabled={sizeData.stock === 0}
+              >
+                <Minus size={12} />
+              </button>
+              <button 
+                className="stock-btn increase"
+                onClick={() => onUpdateStock(variantIndex, sizeIndex, 1)}
+              >
+                <Plus size={12} />
+              </button>
+            </div>
+            <button
+              className="sizes-grid-delete-btn"
+              onClick={() => handleDeleteSize(productId, variant._id, sizeData._id)}
+              title="Delete size"
             >
-              {showAddSize ? <X size={16} /> : <Plus size={16} />}
-              <span>{showAddSize ? 'Close' : 'Add Size'}</span>
+              <Trash2 size={14} />
             </button>
           </div>
+        ))}
+      </div>
+                            <button 
+                      className="add-size-toggle-btn"
+                      onClick={() => setShowAddSize((prev) => !prev)}
+                    >
+                      {showAddSize ? <X size={16} /> : <Plus size={16} />}
+                      <span>{showAddSize ? 'Close' : 'Add Size'}</span>
+                    </button>
+
+    </div>
+  </div>
+))}
 
           {/* Show DynamicSizesInput under grid */}
         {showAddSize && (

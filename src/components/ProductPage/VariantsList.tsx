@@ -21,7 +21,7 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onI
 
   // 🔹 New delete variant using API
   const handleDeleteVariant = async (variantId) => {
-    console.log(productId, variantId,'productId, variantId)');
+    // console.log(productId, variantId,'productId, variantId)');
     
     try {
       const res = await deleteVariantAPI(productId, variantId);

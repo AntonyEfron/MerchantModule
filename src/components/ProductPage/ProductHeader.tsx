@@ -1,5 +1,5 @@
-import React from 'react';
-import { Edit3, Trash2, X, Save, Loader } from 'lucide-react';
+import React, { useState } from 'react';
+import { Edit3, Trash2, X, Save, Loader, ChevronDown, ChevronUp } from 'lucide-react';
 import { getStockStatus } from './utils/stockUtils';
 import './styles/ProductHeader.css';
 
@@ -20,6 +20,9 @@ const ProductHeader = ({
   // ✅ First product image (from variant[0] or fallback product.image)
   const firstVariantImage =
     product?.variants?.[0]?.images?.[0]?.url || product.image || '';
+
+  // ✅ Toggle state
+  const [showDetails, setShowDetails] = useState(false);
 
   return (
     <div className="product-header">
@@ -71,23 +74,32 @@ const ProductHeader = ({
               </span>
             </div>
 
+            {/* ✅ Toggle Btn only, aligned right */}
             {variants.length === 1 && (
+              <button
+                className="toggle-btn"
+                onClick={() => setShowDetails((prev) => !prev)}
+              >
+                {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            )}
+          </div>
+
+          {/* ✅ Variant details BELOW product-meta */}
+          {variants.length === 1 && showDetails && (
+            <div className="variant-details">
               <div className="pricing-info">
                 <span className="price-badge mrp">
                   MRP: ${variants[0].mrp?.toFixed(2) || '0.00'}
                 </span>
                 <span className="price-badge selling">
-                 Selling Price: ${variants[0].price?.toFixed(2) || '0.00'}
+                  Selling Price: ${variants[0].price?.toFixed(2) || '0.00'}
                 </span>
                 <span className="price-badge discount">
                   {variants[0].discount || 0}% OFF
                 </span>
               </div>
-            )}
 
-            {/* ✅ Compact sizes (only show sizes, not variant images) */}
-            {variants.length === 1 && (
-            
               <div className="compact-sizes">
                 {variants[0].sizes?.map(
                   (sizeData, sizeIndex) =>
@@ -110,8 +122,8 @@ const ProductHeader = ({
                     )
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

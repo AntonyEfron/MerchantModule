@@ -171,6 +171,8 @@ export const updateStock = async (productId, variantId, sizeData) => {
 };
 
 export const deleteVariantSizes = async (productId, variantId, sizeId) => {
+  console.log(productId, variantId, sizeId);
+  
   try {
     const res = await axiosInstance.delete(
       `/merchant/deleteSizes/${productId}/${variantId}/${sizeId}`

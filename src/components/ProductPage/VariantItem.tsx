@@ -19,7 +19,7 @@ const VariantItem = ({
   onVariantUpdate // ✅ need this to update sizes
 }) => {
   const [showAddSize, setShowAddSize] = useState(false);
-console.log(variant.sizes);
+console.log(productId);
 
   return (
     <div className={`variant-item ${isExpanded ? 'expanded' : 'compact'}`}>

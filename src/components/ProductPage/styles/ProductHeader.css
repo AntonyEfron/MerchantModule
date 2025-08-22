@@ -39,8 +39,8 @@
   gap: 1rem;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: start; /* push toggle to the right */
 }
-
 /* ========================= */
 /* Badges */
 /* ========================= */
@@ -261,8 +261,8 @@
 .compact-sizes {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 5px;
+  /* margin-top: 8px; */
 }
 
 .compact-size-item {
@@ -347,5 +347,58 @@
 
   .compact-sizes {
     gap: 6px;
+  }
+}
+.toggle-section {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+.toggle-btn {
+  margin-left: auto; /* push button to far right */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: #475569;
+}
+
+.toggle-btn:hover {
+  background: #f1f5f9;
+  color: #3730a3;
+  transform: translateY(-1px);
+}
+
+.toggle-btn svg {
+  pointer-events: none;
+}
+
+/* ========================= */
+/* Variant Details Container */
+/* ========================= */
+.variant-details {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f9fafb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  animation: fadeSlide 0.3s ease;
+}
+
+/* Smooth fade+slide animation */
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

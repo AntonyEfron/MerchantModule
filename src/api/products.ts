@@ -152,7 +152,7 @@ export const updateVariant = async (productId, variantId, formData) => {
   }
 };
 
-export const updateStock = async (productId, variantId, sizeData) => {
+export const updateSize = async (productId, variantId, sizeData) => {
   const { sizeId, size, stock } = sizeData;
 
   console.log(productId, variantId, sizeData);
@@ -164,6 +164,31 @@ export const updateStock = async (productId, variantId, sizeData) => {
       : `merchant/updateStock/${productId}/${variantId}`;
 
     const res = await axiosInstance.put(url, { size, stock });
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Stock update failed");
+  }
+};
+
+export const updateSizeCount = async (productId, variantId, sizeData) => {
+
+  console.log(productId, variantId, sizeData);
+  
+  const { sizeId, stock } = sizeData;
+
+  console.log(productId, variantId, sizeData);
+  
+  // Validate required parameters
+  if (!sizeId) {
+    throw new Error("Size ID is required for stock updates");
+  }
+
+  try {
+    // ✅ Always use sizeId in URL since it's now required
+    const url = `merchant/updateStock/${productId}/${variantId}/${sizeId}`;
+
+    // ✅ Only send stock in request body
+    const res = await axiosInstance.put(url, { stock });
     return res.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Stock update failed");
@@ -182,8 +207,6 @@ export const deleteVariantSizes = async (productId, variantId, sizeId) => {
     throw new Error(error.response?.data?.message || "Failed to delete size");
   }
 };
-
-
 
 export const getBaseProductById = async (productId) => {
     try {
@@ -240,7 +263,6 @@ export const deleteImage = async (imageId) => {
   const { data } = await axiosInstance.delete(`merchant/deleteImage/${imageId}`);
   return data;
 };
-
 
 export const saveProductDetails = async (productId, productData) => {
 

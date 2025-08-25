@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Check } from "lucide-react";
-import { updateStock } from "../../api/products"; // ✅ import API
+import { updateSize } from "../../api/products"; // ✅ import API
 import "./styles/AddSizeInput.css";
 
 const AddSizeInput = ({ productId, variantId, onSuccess }) => {
@@ -15,7 +15,7 @@ const handleAdd = async () => {
     setLoading(true);
 
     // ✅ Always call API only here
-    const res = await updateStock(productId, variantId, {
+    const res = await updateSize(productId, variantId, {
       size,   // new size name
       stock   // initial stock
     });

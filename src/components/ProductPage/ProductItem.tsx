@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Edit3, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import ProductHeader from './ProductHeader';
-import { deleteProduct, updateStock } from '../../api/products'; 
+import { deleteProduct, updateSizeCount } from '../../api/products'; // ✅ Changed to updateSize
 import ProductDescription from './ProductDescription';
 import VariantsList from './VariantsList';
 import AddVariantSection from './AddVariantSection';
@@ -28,44 +28,49 @@ const ProductItem = ({
   const [hasStockChanges, setHasStockChanges] = useState(false);
   const [tempVariants, setTempVariants] = useState(product.variants);
 
-   const { openConfirm } = useConfirmDialog();
+  const { openConfirm } = useConfirmDialog();
 
-  // ✅ track only changed stocks
+  // ✅ Track changed stocks with sizeId
   const [changedStocks, setChangedStocks] = useState([]);
 
   useEffect(() => {
     setTempVariants(product.variants);
-    setChangedStocks([]); // reset changes if product updates
+    setChangedStocks([]);
   }, [product]);
 
-  // ✅ Save only changed stocks
-const saveStockChanges = async () => {
-  if (changedStocks.length === 0) return;
+  // ✅ Save only changed stocks with correct parameters
+  const saveStockChanges = async () => {
+    if (changedStocks.length === 0) return;
 
-  try {
-    setIsLoading(true);
-    setError("");
+    try {
+      setIsLoading(true);
+      setError("");
 
-    for (const change of changedStocks) {
-      if (!change.size) continue; // ✅ skip empty rows
-      const { variantId, size, stock } = change;
-      await updateStock(product._id || product.id, variantId, size, stock);
+      for (const change of changedStocks) {
+        if (!change.sizeId) continue; // ✅ Check for sizeId instead of size
+        
+        const { variantId, sizeId, stock } = change;
+        
+        // ✅ Pass parameters correctly to match your API
+        await updateSizeCount(product._id || product.id, variantId, {
+          sizeId,
+          stock
+        });
+      }
+
+      const updatedProduct = { ...product, variants: tempVariants };
+      updateProducts(updatedProduct);
+
+      setHasStockChanges(false);
+      setChangedStocks([]);
+
+    } catch (err) {
+      console.error("Error updating stock:", err);
+      setError(err.message || "Failed to update stock");
+    } finally {
+      setIsLoading(false);
     }
-
-    const updatedProduct = { ...product, variants: tempVariants };
-    updateProducts(updatedProduct);
-
-    setHasStockChanges(false);
-    setChangedStocks([]);
-
-  } catch (err) {
-    console.error("Error updating stock:", err);
-    setError(err.message || "Failed to update stock");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   const handleDeleteProduct = async () => {
     try {
@@ -124,7 +129,7 @@ const saveStockChanges = async () => {
     setChangedStocks([]);
   };
 
-  // ✅ Track changed stock
+  // ✅ Track changed stock with sizeId
   const handleStockUpdate = (variantIndex, sizeIndex, increment) => {
     const updatedVariants = [...tempVariants];
     const currentStock = updatedVariants[variantIndex].sizes[sizeIndex].stock;
@@ -134,32 +139,34 @@ const saveStockChanges = async () => {
     setTempVariants(updatedVariants);
 
     const variantId = updatedVariants[variantIndex]._id;
+    const sizeId = updatedVariants[variantIndex].sizes[sizeIndex]._id; // ✅ Get sizeId
     const size = updatedVariants[variantIndex].sizes[sizeIndex].size;
 
-    // ✅ Add to changedStocks (replace if already exists)
+    // ✅ Add to changedStocks with sizeId
     setChangedStocks(prev => {
-      const filtered = prev.filter(c => !(c.variantId === variantId && c.size === size));
-      return [...filtered, { variantId, size, stock: newStock }];
+      const filtered = prev.filter(c => !(c.variantId === variantId && c.sizeId === sizeId));
+      return [...filtered, { variantId, sizeId, size, stock: newStock }];
     });
 
     setHasStockChanges(true);
   };
 
-const handleSizesChanged = (updatedVariants) => {
-  setTempVariants(updatedVariants);
+  const handleSizesChanged = (updatedVariants) => {
+    setTempVariants(updatedVariants);
 
-  // Collect changes from *all variants*, not just the first
-  const allChanges = updatedVariants.flatMap(variant =>
-    variant.sizes.map(sizeObj => ({
-      variantId: variant._id,
-      size: sizeObj.size,
-      stock: sizeObj.stock
-    }))
-  );
+    // ✅ Collect changes with sizeId from all variants
+    const allChanges = updatedVariants.flatMap(variant =>
+      variant.sizes.map(sizeObj => ({
+        variantId: variant._id,
+        sizeId: sizeObj._id, // ✅ Include sizeId
+        size: sizeObj.size,
+        stock: sizeObj.stock
+      }))
+    );
 
-  setChangedStocks(allChanges);
-  setHasStockChanges(true);
-};
+    setChangedStocks(allChanges);
+    setHasStockChanges(true);
+  };
 
   const cancelStockChanges = () => {
     setTempVariants(product.variants);
@@ -183,34 +190,31 @@ const handleSizesChanged = (updatedVariants) => {
   const toggleShowVariants = () => {
     setShowVariants(!showVariants);
   };
-  // console.log(product.variants[0]._id,'productIdproductId');
-
 
   return (
     <div className="product-item">
-        <ProductHeader
-          product={product}
-          index={index}
-          isEditing={isEditing}
-          tempData={tempProductData}
-          totalStock={getTotalStock(hasStockChanges ? tempVariants : product.variants)}
-          onEdit={toggleProductEdit}
-          onSave={saveProductChanges}
-          onDelete={() =>
-            openConfirm({
-              title: "Confirm Deletion",
-              message: `Are you sure you want to delete "${product.name}"?`,
-              onConfirm: handleDeleteProduct,
-            })
-          }
-          onUpdateTempData={updateTempProductData}
-          onCancel={cancelEdit}
-          isLoading={isLoading}
-          error={error}
-          variants={product.variants}
-        />
+      <ProductHeader
+        product={product}
+        index={index}
+        isEditing={isEditing}
+        tempData={tempProductData}
+        totalStock={getTotalStock(hasStockChanges ? tempVariants : product.variants)}
+        onEdit={toggleProductEdit}
+        onSave={saveProductChanges}
+        onDelete={() =>
+          openConfirm({
+            title: "Confirm Deletion",
+            message: `Are you sure you want to delete "${product.name}"?`,
+            onConfirm: handleDeleteProduct,
+          })
+        }
+        onUpdateTempData={updateTempProductData}
+        onCancel={cancelEdit}
+        isLoading={isLoading}
+        error={error}
+        variants={product.variants}
+      />
 
-      
       {error && (
         <div className="error-message">
           <span className="error-text">⚠️ {error}</span>
@@ -218,7 +222,7 @@ const handleSizesChanged = (updatedVariants) => {
       )}
 
       <AddVariantSection
-        productId={product.id || product._id }
+        productId={product.id || product._id}
         isAddingVariant={addingVariant}
         setAddingVariant={setAddingVariant}
         variants={product.variants}
@@ -229,7 +233,6 @@ const handleSizesChanged = (updatedVariants) => {
         onImageUpload={onImageUpload}
         onRemoveImage={onRemoveImage}
         updateProducts={updateProducts}
-        
       />
           
       {(showVariants || isEditing) && (

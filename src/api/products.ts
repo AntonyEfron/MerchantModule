@@ -195,6 +195,20 @@ export const updateSizeCount = async (productId, variantId, sizeData) => {
   }
 };
 
+export const updatePrice = async (productId, variantId, priceData) => {
+  const { mrp, price, discount } = priceData;
+
+  console.log(productId, variantId, priceData);
+
+  try {
+    const url = `merchant/updatePrice/${productId}/${variantId}`;
+    const res = await axiosInstance.put(url, { mrp, price, discount });
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Price update failed");
+  }
+};
+
 export const deleteVariantSizes = async (productId, variantId, sizeId) => {
   console.log(productId, variantId, sizeId);
   

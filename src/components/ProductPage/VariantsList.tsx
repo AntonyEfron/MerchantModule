@@ -3,7 +3,7 @@ import VariantItem from './VariantItem';
 import { deleteVariant as deleteVariantAPI } from '../../api/products';  // ✅ import API
 import './styles/VariantsList.css';
 
-const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onImageUpload, onRemoveImage }) => {
+const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onImageUpload, onRemoveImage, onPriceUpdate, }) => {
   const [expandedVariants, setExpandedVariants] = useState({});
 
   const toggleVariantExpansion = (variantIndex) => {
@@ -48,7 +48,9 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onI
         onUpdateStock={onUpdateStock}
         onImageUpload={onImageUpload}
         onRemoveImage={onRemoveImage}
-        onVariantUpdate={onVariantUpdate}   // ✅ pass it down
+        onVariantUpdate={onVariantUpdate} 
+        onPriceUpdate={onPriceUpdate}
+          // ✅ pass it down
       />
       ))}
     </div>

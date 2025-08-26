@@ -1,8 +1,7 @@
 // components/ProductPage/ProductItem.jsx
 import React, { useState, useEffect } from 'react';
-import { Edit3, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import ProductHeader from './ProductHeader';
-import { deleteProduct, updateSizeCount } from '../../api/products'; // ✅ Changed to updateSize
+import { deleteProduct, updateSizeCount } from '../../api/products';
 import ProductDescription from './ProductDescription';
 import VariantsList from './VariantsList';
 import AddVariantSection from './AddVariantSection';
@@ -18,6 +17,8 @@ const ProductItem = ({
   onRemoveImage, 
   onSaveProductChanges 
 }) => {
+  const productId = product._id || product.id;
+
   const [isEditing, setIsEditing] = useState(false);
   const [tempProductData, setTempProductData] = useState({});
   const [addingVariant, setAddingVariant] = useState(false);
@@ -27,43 +28,30 @@ const ProductItem = ({
 
   const [hasStockChanges, setHasStockChanges] = useState(false);
   const [tempVariants, setTempVariants] = useState(product.variants);
+  const [changedStocks, setChangedStocks] = useState([]);
 
   const { openConfirm } = useConfirmDialog();
-
-  // ✅ Track changed stocks with sizeId
-  const [changedStocks, setChangedStocks] = useState([]);
 
   useEffect(() => {
     setTempVariants(product.variants);
     setChangedStocks([]);
   }, [product]);
 
-  // ✅ Save only changed stocks with correct parameters
+  // ✅ Save only changed stocks
   const saveStockChanges = async () => {
     if (changedStocks.length === 0) return;
-
     try {
       setIsLoading(true);
       setError("");
 
-      for (const change of changedStocks) {
-        if (!change.sizeId) continue; // ✅ Check for sizeId instead of size
-        
-        const { variantId, sizeId, stock } = change;
-        
-        // ✅ Pass parameters correctly to match your API
-        await updateSizeCount(product._id || product.id, variantId, {
-          sizeId,
-          stock
-        });
+      for (const { variantId, sizeId, stock } of changedStocks) {
+        if (!sizeId) continue;
+        await updateSizeCount(productId, variantId, { sizeId, stock });
       }
 
-      const updatedProduct = { ...product, variants: tempVariants };
-      updateProducts(updatedProduct);
-
+      updateProducts({ ...product, variants: tempVariants });
       setHasStockChanges(false);
       setChangedStocks([]);
-
     } catch (err) {
       console.error("Error updating stock:", err);
       setError(err.message || "Failed to update stock");
@@ -75,10 +63,8 @@ const ProductItem = ({
   const handleDeleteProduct = async () => {
     try {
       setIsLoading(true);
-      await deleteProduct(product._id || product.id);
-      if (onDelete) {
-        onDelete(product._id || product.id);
-      }
+      await deleteProduct(productId);
+      onDelete?.(productId);
     } catch (err) {
       console.error("Failed to delete product:", err);
       setError("Failed to delete product");
@@ -89,19 +75,15 @@ const ProductItem = ({
 
   const toggleProductEdit = () => {
     if (isEditing) return;
-    setTempProductData({
-      name: product.name,
-      description: product.description
-    });
+    setTempProductData({ name: product.name, description: product.description });
     setIsEditing(true);
     setError('');
   };
 
   const saveProductChanges = async () => {
-    setIsLoading(true);
-    setError('');
-   
     try {
+      setIsLoading(true);
+      setError('');
       const result = await onSaveProductChanges(product, tempProductData);
       if (result.success) {
         setTempProductData({});
@@ -115,58 +97,49 @@ const ProductItem = ({
     }
   };
 
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setTempProductData({});
-    setError('');
-  };
-
   const handleVariantUpdate = (updatedVariants) => {
-    const updatedProduct = { ...product, variants: updatedVariants };
-    updateProducts(updatedProduct);
+    updateProducts({ ...product, variants: updatedVariants });
     setTempVariants(updatedVariants);
     setHasStockChanges(false);
     setChangedStocks([]);
   };
 
-  // ✅ Track changed stock with sizeId
+  // ✅ Track stock changes
   const handleStockUpdate = (variantIndex, sizeIndex, increment) => {
     const updatedVariants = [...tempVariants];
-    const currentStock = updatedVariants[variantIndex].sizes[sizeIndex].stock;
-    const newStock = Math.max(0, currentStock + increment);
+    const sizeObj = updatedVariants[variantIndex].sizes[sizeIndex];
 
-    updatedVariants[variantIndex].sizes[sizeIndex].stock = newStock;
+    sizeObj.stock = Math.max(0, sizeObj.stock + increment);
+
     setTempVariants(updatedVariants);
 
-    const variantId = updatedVariants[variantIndex]._id;
-    const sizeId = updatedVariants[variantIndex].sizes[sizeIndex]._id; // ✅ Get sizeId
-    const size = updatedVariants[variantIndex].sizes[sizeIndex].size;
-
-    // ✅ Add to changedStocks with sizeId
     setChangedStocks(prev => {
-      const filtered = prev.filter(c => !(c.variantId === variantId && c.sizeId === sizeId));
-      return [...filtered, { variantId, sizeId, size, stock: newStock }];
+      const filtered = prev.filter(c => !(c.variantId === updatedVariants[variantIndex]._id && c.sizeId === sizeObj._id));
+      return [...filtered, { variantId: updatedVariants[variantIndex]._id, sizeId: sizeObj._id, size: sizeObj.size, stock: sizeObj.stock }];
     });
 
     setHasStockChanges(true);
   };
 
-  const handleSizesChanged = (updatedVariants) => {
-    setTempVariants(updatedVariants);
-
-    // ✅ Collect changes with sizeId from all variants
-    const allChanges = updatedVariants.flatMap(variant =>
-      variant.sizes.map(sizeObj => ({
-        variantId: variant._id,
-        sizeId: sizeObj._id, // ✅ Include sizeId
-        size: sizeObj.size,
-        stock: sizeObj.stock
-      }))
-    );
-
-    setChangedStocks(allChanges);
-    setHasStockChanges(true);
+const handlePriceUpdate = (updatedVariant) => {
+  const numericVariant = {
+    ...updatedVariant,
+    mrp: Number(updatedVariant.mrp) || 0,
+    price: Number(updatedVariant.price) || 0,
+    discount: Number(updatedVariant.discount) || 0,
   };
+
+  // 🔹 Update product.variants
+  const updatedVariants = (product.variants || []).map(v =>
+    v._id === numericVariant._id ? numericVariant : v
+  );
+
+  // 🔹 Push change into parent
+  updateProducts({ ...product, variants: updatedVariants });
+
+  // 🔹 Also sync local tempVariants so UI shows correct price even when hasStockChanges is true
+  setTempVariants(updatedVariants);
+};
 
   const cancelStockChanges = () => {
     setTempVariants(product.variants);
@@ -175,21 +148,13 @@ const ProductItem = ({
   };
 
   const updateTempProductData = (field, value) => {
-    setTempProductData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setTempProductData(prev => ({ ...prev, [field]: value }));
   };
 
-  const getTotalStock = (variants) => {
-    return variants.reduce((total, variant) => 
-      total + variant.sizes.reduce((variantTotal, size) => variantTotal + size.stock, 0), 0
+  const getTotalStock = (variants) =>
+    variants.reduce((total, variant) => 
+      total + variant.sizes.reduce((sum, s) => sum + s.stock, 0), 0
     );
-  };
-
-  const toggleShowVariants = () => {
-    setShowVariants(!showVariants);
-  };
 
   return (
     <div className="product-item">
@@ -209,27 +174,23 @@ const ProductItem = ({
           })
         }
         onUpdateTempData={updateTempProductData}
-        onCancel={cancelEdit}
         isLoading={isLoading}
         error={error}
         variants={product.variants}
+        onPriceUpdate={handlePriceUpdate}
       />
 
-      {error && (
-        <div className="error-message">
-          <span className="error-text">⚠️ {error}</span>
-        </div>
-      )}
+      {error && <div className="error-message">⚠️ {error}</div>}
 
       <AddVariantSection
-        productId={product.id || product._id}
+        productId={productId}
         isAddingVariant={addingVariant}
         setAddingVariant={setAddingVariant}
         variants={product.variants}
         onVariantUpdate={handleVariantUpdate}
         onUpdateStock={handleStockUpdate}
         showVariants={showVariants}
-        onToggleShowVariants={toggleShowVariants}
+        onToggleShowVariants={() => setShowVariants(!showVariants)}
         onImageUpload={onImageUpload}
         onRemoveImage={onRemoveImage}
         updateProducts={updateProducts}
@@ -248,32 +209,23 @@ const ProductItem = ({
       {showVariants && (
         <VariantsList
           variants={hasStockChanges ? tempVariants : product.variants}
-          productId={product.id}
+          productId={productId}
           onVariantUpdate={handleVariantUpdate}
           onUpdateStock={handleStockUpdate}
           onImageUpload={onImageUpload}
           onRemoveImage={onRemoveImage}
+          onPriceUpdate={handlePriceUpdate}
         />
       )}
 
       {hasStockChanges && (
         <div className="stock-update-controls">
-          <div className="stock-update-message">
-            <span>You have unsaved stock changes</span>
-          </div>
+          <span>You have unsaved stock changes</span>
           <div className="stock-update-buttons">
-            <button 
-              className="save-stock-btn"
-              onClick={saveStockChanges}
-              disabled={isLoading}
-            >
+            <button onClick={saveStockChanges} disabled={isLoading}>
               {isLoading ? "Updating..." : "Update Stock"}
             </button>
-            <button 
-              className="cancel-stock-btn"
-              onClick={cancelStockChanges}
-              disabled={isLoading}
-            >
+            <button onClick={cancelStockChanges} disabled={isLoading}>
               Cancel
             </button>
           </div>

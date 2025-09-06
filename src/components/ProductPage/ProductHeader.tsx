@@ -101,6 +101,10 @@ const handlePriceChange = (field: 'mrp' | 'price' | 'discount', value: string) =
   });
 };
 
+// console.log(product.subCategory,'product.categoryId?.name');
+// console.log(product,'product');
+
+
   const handlePriceSave = async () => {
     try {
       setPriceLoading(true);
@@ -168,10 +172,10 @@ const handlePriceChange = (field: 'mrp' | 'price' | 'discount', value: string) =
 
             <div className="pricing-info">
               <span className="product-category">
-                {product.subCategory || ''}
+                {product.subCategory ?? product.subCategoryId?.name ?? ""}
               </span>
               <span className="product-category">
-                {product.subSubCategory || '0.00'}
+                {product.subSubCategory ?? product.subSubCategoryId?.name ?? ""}
               </span>
             </div>
 
@@ -180,8 +184,8 @@ const handlePriceChange = (field: 'mrp' | 'price' | 'discount', value: string) =
                 className="toggle-btn"
                 onClick={() => setShowDetails((prev) => !prev)}
               >
-                {showDetails ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
+                {showDetails ? <ChevronUp size={16} />  : <ChevronDown size={16} />}  details
+              </button> 
             )}
           </div>
 

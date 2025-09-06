@@ -2,8 +2,9 @@ import React, { useState, useEffect, useContext } from 'react';
 import { ChevronDown, Plus, X, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { getCategories, addBaseProduct, getBrands } from '../../api/products';
-import AddVariant from './AddVarient/AddVarient';
-import AddBrandPage from '../Brand/AddBrandPage';
+// import AddVariant from './AddVarient/AddVarient';
+import VariantForm from '../ProductPage/VariantForm';
+// import AddBrandPage from '../Brand/AddBrandPage';
 import './AddNewProduct.css';
 
 const AddNewProduct = () => {
@@ -534,11 +535,18 @@ const handleSubmit = async (e) => {
       </div>
     </div>
 
-    {showAddVariant && (
-      <div style={{ marginTop: "2rem" }}>
-        <AddVariant createdProductId={createdProductId} />
-      </div>
-    )}
+{showAddVariant && createdProductId && (
+  <VariantForm
+    productId={createdProductId}
+    onSubmit={(updatedProduct) => {
+      console.log("✅ Variant added:", updatedProduct);
+      // you can handle updating parent state here if needed
+      setShowAddVariant(false); // optional: close after submit
+    }}
+    onCancel={() => setShowAddVariant(false)}
+    selectedVariantIndex={0} // since it's first variant
+  />
+)}
 
           {/* <AddBrandPage/> */}
           </>

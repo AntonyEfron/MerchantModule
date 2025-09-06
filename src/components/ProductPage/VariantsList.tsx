@@ -1,16 +1,25 @@
+// components/ProductPage/VariantsList.jsx
 import React, { useState } from 'react';
 import VariantItem from './VariantItem';
-import { deleteVariant as deleteVariantAPI } from '../../api/products';  // ✅ import API
+import { deleteVariant as deleteVariantAPI } from '../../api/products';
 import './styles/VariantsList.css';
 
-const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onImageUpload, onRemoveImage, onPriceUpdate, }) => {
+const VariantsList = ({
+  variants,
+  productId,
+  onVariantUpdate,
+  onUpdateStock,
+  onImageUpload,
+  onRemoveImage,
+  onPriceUpdate,
+}) => {
   const [expandedVariants, setExpandedVariants] = useState({});
 
   const toggleVariantExpansion = (variantIndex) => {
     const key = `${productId}-${variantIndex}`;
-    setExpandedVariants(prev => ({
+    setExpandedVariants((prev) => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !prev[key],
     }));
   };
 
@@ -19,39 +28,33 @@ const VariantsList = ({ variants, productId, onVariantUpdate, onUpdateStock, onI
     return expandedVariants[key] || false;
   };
 
-  // 🔹 New delete variant using API
+  // ✅ Delete variant using API
   const handleDeleteVariant = async (variantId) => {
-    // console.log(productId, variantId,'productId, variantId)');
-    
     try {
       const res = await deleteVariantAPI(productId, variantId);
-      onVariantUpdate(res.product.variants); // ✅ update parent with latest product variants
+      onVariantUpdate(res.product.variants);
     } catch (err) {
-      console.error("Delete variant failed:", err);
+      console.error('Delete variant failed:', err);
     }
   };
-
-// console.log(variants);
-// 
 
   return (
     <div className="variants-container">
       {variants.map((variant, variantIndex) => (
-      <VariantItem
-        key={`${productId}-variant-${variant._id}`}
-        variant={variant}
-        variantIndex={variantIndex}
-        productId={productId}
-        isExpanded={isVariantExpanded(variantIndex)}
-        onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
-        onDelete={() => handleDeleteVariant(variant._id)}
-        onUpdateStock={onUpdateStock}
-        onImageUpload={onImageUpload}
-        onRemoveImage={onRemoveImage}
-        onVariantUpdate={onVariantUpdate} 
-        onPriceUpdate={onPriceUpdate}
-          // ✅ pass it down
-      />
+        <VariantItem
+          key={`${productId}-variant-${variant._id}`}
+          variant={variant}
+          variantIndex={variantIndex}
+          productId={productId}
+          isExpanded={isVariantExpanded(variantIndex)}
+          onToggleExpansion={() => toggleVariantExpansion(variantIndex)}
+          onDelete={(variantId) => handleDeleteVariant(variantId)} // ✅ confirm handled in child
+          onUpdateStock={onUpdateStock}
+          onImageUpload={onImageUpload}
+          onRemoveImage={onRemoveImage}
+          onVariantUpdate={onVariantUpdate}
+          onPriceUpdate={onPriceUpdate}
+        />
       ))}
     </div>
   );

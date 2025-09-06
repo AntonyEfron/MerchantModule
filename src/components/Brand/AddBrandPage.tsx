@@ -10,13 +10,14 @@ const AddBrandPage: React.FC = () => {
 
   return (
     <div>
-      {
+      {/* {
         createdById ? (
-          <AddBrandForm createdById={createdById} createdByType={createdByType} />
         ) : (
           <p style={{ color: "red" }}>You must be logged in as a merchant to add a brand.</p>
         )
-      }
+      } */}
+          <AddBrandForm createdById={createdById} createdByType={createdByType} />
+
     </div>
   );
 };

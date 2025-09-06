@@ -222,10 +222,10 @@ const handlePriceUpdate = (updatedVariant) => {
         <div className="stock-update-controls">
           <span>You have unsaved stock changes</span>
           <div className="stock-update-buttons">
-            <button onClick={saveStockChanges} disabled={isLoading}>
+            <button onClick={saveStockChanges} disabled={isLoading} className="save-stock-btn">
               {isLoading ? "Updating..." : "Update Stock"}
             </button>
-            <button onClick={cancelStockChanges} disabled={isLoading}>
+            <button onClick={cancelStockChanges} disabled={isLoading} className="cancel-stock-btn">
               Cancel
             </button>
           </div>

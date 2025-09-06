@@ -12,14 +12,32 @@ export const ConfirmDialogProvider = ({ children }) => {
     title: "",
     message: "",
     onConfirm: null,
+    confirmLabel: "Confirm",
+    cancelLabel: "Cancel",
+    confirmColor: "green",
   });
 
-  const openConfirm = ({ title, message, onConfirm }) => {
-    setDialog({ isOpen: true, title, message, onConfirm });
+  const openConfirm = ({
+    title,
+    message,
+    onConfirm,
+    confirmLabel,
+    cancelLabel,
+    confirmColor,
+  }) => {
+    setDialog({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      confirmLabel,
+      cancelLabel,
+      confirmColor,
+    });
   };
 
   const closeConfirm = () => {
-    setDialog({ ...dialog, isOpen: false });
+    setDialog((prev) => ({ ...prev, isOpen: false }));
   };
 
   const handleConfirm = () => {
@@ -37,6 +55,9 @@ export const ConfirmDialogProvider = ({ children }) => {
           message={dialog.message}
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
+          confirmLabel={dialog.confirmLabel}
+          cancelLabel={dialog.cancelLabel}
+          confirmColor={dialog.confirmColor}
         />
       )}
     </ConfirmDialogContext.Provider>

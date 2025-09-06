@@ -233,10 +233,14 @@ export const getBaseProductById = async (productId) => {
 }
 
 export const fetchProductsByMerchantId = async (merchantId) => {
+
+  
   try {
     const res = await axiosInstance.get(
       `merchant/fetchProductsByMerchantId/${merchantId}`
     );
+  // console.log(res.data,'res.data');
+
     // console.log("Fetched products:", res.data); // ✅ actual data
     return res.data;  // axios automatically parses JSON
   } catch (error) {

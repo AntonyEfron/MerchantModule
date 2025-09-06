@@ -1,10 +1,20 @@
 // components/ProductPage/VariantItem.jsx
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Trash2, Plus, Minus, X, Edit3, Save } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Plus,
+  Minus,
+  X,
+  Edit3,
+  Save,
+} from 'lucide-react';
 import ImageGallery from './ImageGallery';
 import { getStockStatus } from './utils/stockUtils';
 import { deleteVariantSizes, updatePrice } from '../../api/products';
 import './styles/VariantItem.css';
+import { useConfirmDialog } from '../../context/ConfirmDialogContext';
 import AddSizeInput from './AddSizeInput';
 
 const VariantItem = ({
@@ -17,8 +27,8 @@ const VariantItem = ({
   onUpdateStock,
   onImageUpload,
   onRemoveImage,
-  onVariantUpdate,   // stock updates
-  onPriceUpdate      // ✅ price updates
+  onVariantUpdate, // stock updates
+  onPriceUpdate, // price updates
 }) => {
   const [showAddSize, setShowAddSize] = useState(false);
 
@@ -27,6 +37,8 @@ const VariantItem = ({
   const [mrp, setMrp] = useState(variant.mrp || 0);
   const [price, setPrice] = useState(variant.price || 0);
   const [discount, setDiscount] = useState(variant.discount || 0);
+
+  const { openConfirm } = useConfirmDialog();
 
   // ✅ Recalculate discount whenever MRP or price changes (while editing)
   useEffect(() => {
@@ -39,11 +51,11 @@ const VariantItem = ({
   }, [mrp, price]);
 
   // ✅ Update local state when variant prop changes (but don’t overwrite while editing)
-useEffect(() => {
-  setMrp(variant.mrp || 0);
-  setPrice(variant.price || 0);
-  setDiscount(variant.discount || 0);
-}, [variant._id, variant.mrp, variant.price, variant.discount]);
+  useEffect(() => {
+    setMrp(variant.mrp || 0);
+    setPrice(variant.price || 0);
+    setDiscount(variant.discount || 0);
+  }, [variant._id, variant.mrp, variant.price, variant.discount]);
 
   // ✅ Handle price input changes
   const handlePriceChange = (field, value) => {
@@ -70,10 +82,8 @@ useEffect(() => {
         (v) => v._id === variant._id
       );
 
-      // ✅ send single updated variant up (consistent with ProductHeader)
       onPriceUpdate?.(updatedVariant);
 
-      // ✅ sync local state with server values
       setMrp(updatedVariant.mrp);
       setPrice(updatedVariant.price);
       setDiscount(updatedVariant.discount);
@@ -89,7 +99,23 @@ useEffect(() => {
   };
 
   // ✅ Use live discount while editing, otherwise show variant discount
-  const displayDiscount = isEditing ? discount : (variant.discount || 0);
+  const displayDiscount = isEditing ? discount : variant.discount || 0;
+
+  // ✅ Delete variant with confirmation
+  const handleDeleteVariant = () => {
+    openConfirm({
+      title: 'Delete Variant',
+      message: `Are you sure you want to delete the variant "${
+        typeof variant.color === 'object' ? variant.color.name : variant.color
+      }"? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      confirmColor: 'red',
+      onConfirm: () => {
+        onDelete?.(variant._id);
+      },
+    });
+  };
 
   return (
     <div className={`variant-item ${isExpanded ? 'expanded' : 'compact'}`}>
@@ -100,7 +126,9 @@ useEffect(() => {
             style={{ backgroundColor: variant.color?.hex || variant.color }}
           ></div>
           <span className="variant-color">
-            {typeof variant.color === 'object' ? variant.color.name : variant.color}
+            {typeof variant.color === 'object'
+              ? variant.color.name
+              : variant.color}
           </span>
           <span className="variant-stock-summary">
             {variant.sizes.reduce((total, size) => total + size.stock, 0)} units
@@ -150,18 +178,19 @@ useEffect(() => {
               </div>
             ) : (
               <>
-              <span className="price-badge mrp">
-                MRP: ${toMoney(mrp)}
-              </span>
-              <span className="price-badge selling">
-                Price: ${toMoney(price)}
-              </span>
-              <span className="price-badge discount">
-                {discount}% OFF
-              </span>
-              <button className="edit-btn" onClick={() => setIsEditing(true)}>
-                <Edit3 size={14} />
-              </button>
+                <span className="price-badge mrp">MRP: ${toMoney(mrp)}</span>
+                <span className="price-badge selling">
+                  Price: ${toMoney(price)}
+                </span>
+                <span className="price-badge discount">
+                  {displayDiscount}% OFF
+                </span>
+                <button
+                  className="edit-btn"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit3 size={14} />
+                </button>
               </>
             )}
           </div>
@@ -176,9 +205,11 @@ useEffect(() => {
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             <span>{isExpanded ? 'Collapse' : 'Images & Stock Update'}</span>
           </button>
+
+          {/* Delete with confirmation */}
           <button
             className="variant-delete-btn"
-            onClick={onDelete}
+            onClick={handleDeleteVariant}
             title="Delete variant"
           >
             <Trash2 size={14} />
@@ -195,7 +226,9 @@ useEffect(() => {
               className={`compact-size-item ${getStockStatus(sizeData.stock)}`}
             >
               <span className="size-label">{sizeData.size}</span>
-              <span className={`stock-count ${getStockStatus(sizeData.stock)}`}>
+              <span
+                className={`stock-count ${getStockStatus(sizeData.stock)}`}
+              >
                 {sizeData.stock}
               </span>
             </div>
@@ -224,21 +257,29 @@ useEffect(() => {
                 >
                   <div className="size-info">
                     <span className="size-label">{sizeData.size}</span>
-                    <span className={`stock-count ${getStockStatus(sizeData.stock)}`}>
+                    <span
+                      className={`stock-count ${getStockStatus(
+                        sizeData.stock
+                      )}`}
+                    >
                       {sizeData.stock}
                     </span>
                   </div>
                   <div className="stock-controls">
                     <button
                       className="stock-btn decrease"
-                      onClick={() => onUpdateStock(variantIndex, sizeIndex, -1)}
+                      onClick={() =>
+                        onUpdateStock(variantIndex, sizeIndex, -1)
+                      }
                       disabled={sizeData.stock === 0}
                     >
                       <Minus size={12} />
                     </button>
                     <button
                       className="stock-btn increase"
-                      onClick={() => onUpdateStock(variantIndex, sizeIndex, 1)}
+                      onClick={() =>
+                        onUpdateStock(variantIndex, sizeIndex, 1)
+                      }
                     >
                       <Plus size={12} />
                     </button>

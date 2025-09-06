@@ -6,7 +6,7 @@ import { addVariant } from "../../api/products";
 import CropperModal from '../../components/utils/CropperModal';
 import './styles/VariantForm.css';
 
-const VariantForm = ({ productId, onSubmit, onCancel, product, selectedVariantIndex, fetchProduct }) => {
+const VariantForm = ({ productId, onSubmit, onCancel, selectedVariantIndex, }) => {
   const [variantForm, setVariantForm] = useState({
     color: { name: '', hex: '#000000' },
     sizes: [{ size: '', stock: '' }],   // ✅ stock starts as empty string

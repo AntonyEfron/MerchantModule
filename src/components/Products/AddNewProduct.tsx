@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { ChevronDown, Plus, X, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { AuthContext } from '../../context/AuthContext';
+// import { AuthContext } from '../../context/AuthContext';
 import { getCategories, addBaseProduct, getBrands } from '../../api/products';
 // import AddVariant from './AddVarient/AddVarient';
 import VariantForm from '../ProductPage/VariantForm';
@@ -8,7 +8,8 @@ import VariantForm from '../ProductPage/VariantForm';
 import './AddNewProduct.css';
 
 const AddNewProduct = () => {
-  const { merchant } = useContext(AuthContext); // ✅ Get merchant directly
+      const merchant  = localStorage.getItem("merchant_id") // ✅ Get merchant directly
+
 
   const [formData, setFormData] = useState({
     name: '',
@@ -20,7 +21,7 @@ const AddNewProduct = () => {
     description: '',
     features: {},
     tags: '',
-    merchantId: merchant?.id || '', // ✅ Safe access
+    merchantId: merchant || '', // ✅ Safe access
     isTriable: true,
     isActive: true,
   });
@@ -37,11 +38,19 @@ const [createdProductId, setCreatedProductId] = useState(null);
 const [showAddVariant, setShowAddVariant] = useState(false); // renamed for clarity
 
   useEffect(() => {
-    if (!merchant?.id) return; // Wait until merchant is loaded
+
+      console.log(merchant,'merchantmerchant');
+      
+  
+    if (!merchant) return; // Wait until merchant is loaded
 
     const fetchCategories = async () => {
+
       try {
+        console.log('Merchant ID passed to getCategories:', merchant);
         const res = await getCategories();
+        console.log(res,'resresresresres');
+        
         setCategories(res.categories);
       } catch (error) {
         setMessage('Failed to load categories');
@@ -52,8 +61,8 @@ const [showAddVariant, setShowAddVariant] = useState(false); // renamed for clar
     const fetchBrands = async () => {
       setBrandsLoading(true);
       try {
-        console.log('Merchant ID passed to getBrands:', merchant.id);
-        const res = await getBrands(merchant.id);
+        console.log('Merchant ID passed to getBrands:', merchant);
+        const res = await getBrands(merchant);
         setBrands(res.brands || []);
       } catch (err) {
         setMessage('Failed to load brands');
@@ -69,7 +78,7 @@ const [showAddVariant, setShowAddVariant] = useState(false); // renamed for clar
     // Also update merchantId in formData
     setFormData(prev => ({
       ...prev,
-      merchantId: merchant.id
+      merchantId: merchant
     }));
 
   }, [merchant]); 
@@ -153,7 +162,7 @@ const handleSubmit = async (e) => {
       description: '',
       features: {},
       tags: '',
-      merchantId: merchant?.id || '',
+      merchantId: merchant || '',
       isTriable: true,
       isActive: true,
     });

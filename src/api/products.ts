@@ -37,14 +37,18 @@ export const deleteProduct = async (productId) => {
 };
 
 export const getCategories = async () => {
+
   try {
     const response = await axiosInstance.get('/merchant/getCategories');
+    // console.log(response.data,'responsere33333333xsponse');
+
     return response.data;
   } catch (error) {
     console.log(error)
     throw error.response ? error.response.data : new Error('Network Error');
   }
 };
+
 
 export interface AddBrandResponse {
   brand: {

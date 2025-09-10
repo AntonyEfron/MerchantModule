@@ -74,23 +74,23 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Fetch initial orders on mount
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const apiOrders = await fetchMerchantOrders();
-        // Distribute to state arrays based on status
-        setPendingOrders(apiOrders.filter(o => o.status === 'pending'));
-        setAcceptedOrders(apiOrders.filter(o => o.status === 'packaging' || o.status === 'accepted'));
-        setPackedOrders(apiOrders.filter(o => o.status === 'packed'));
-        setTransitOrders(apiOrders.filter(o => o.status === 'in-transit'));
-        setCompletedOrders(apiOrders.filter(o => o.status === 'completed'));
-        setReturnedOrders(apiOrders.filter(o => o.status === 'returned'));
-      } catch (error) {
-        console.error('Failed to fetch orders:', error);
-      }
-    };
-    loadOrders();
-  }, []);
+  // useEffect(() => {
+  //   const loadOrders = async () => {
+  //     try {
+  //       const apiOrders = await fetchMerchantOrders();
+  //       // Distribute to state arrays based on status
+  //       setPendingOrders(apiOrders.filter(o => o.status === 'pending'));
+  //       setAcceptedOrders(apiOrders.filter(o => o.status === 'packaging' || o.status === 'accepted'));
+  //       setPackedOrders(apiOrders.filter(o => o.status === 'packed'));
+  //       setTransitOrders(apiOrders.filter(o => o.status === 'in-transit'));
+  //       setCompletedOrders(apiOrders.filter(o => o.status === 'completed'));
+  //       setReturnedOrders(apiOrders.filter(o => o.status === 'returned'));
+  //     } catch (error) {
+  //       console.error('Failed to fetch orders:', error);
+  //     }
+  //   };
+  //   loadOrders();
+  // }, []);
 
   // Notification audio
   const playNotification = useCallback(() => {

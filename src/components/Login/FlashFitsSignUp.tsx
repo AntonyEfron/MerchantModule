@@ -87,6 +87,7 @@ const handleVerifyOtp = async (): Promise<void> => {
 
     if (res?.merchant?._id) {
       localStorage.setItem("merchant_id", res.merchant._id);
+      localStorage.setItem("token", res.token); // ✅ Save JWT token
       navigate("/merchant/register");
     }
   } catch (error: any) {

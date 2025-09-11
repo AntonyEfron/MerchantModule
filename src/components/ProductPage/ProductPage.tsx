@@ -12,7 +12,7 @@ const ProductPage = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // console.log(products,'productsproductsproducts');
+  console.log(products,'products');
   
 
   // Fetch products for merchant
@@ -167,7 +167,7 @@ const filteredProducts = products.filter(product =>
     <div className="merchant-container">
       {/* Header Section */}
       <div className="header-section">
-        <Link to="/add-product" className="action-card new-product">
+        <Link to="/merchant/add-product" className="action-card new-product">
           <div className="card-icon">
             <Package size={24} />
           </div>
@@ -178,7 +178,7 @@ const filteredProducts = products.filter(product =>
           <div className="card-arrow">→</div>
         </Link>
 
-        <Link to="/add-brand" className="action-card new-brand">
+        <Link to="/merchant/add-brand" className="action-card new-brand">
           <div className="card-icon">
             <Tag size={24} />
           </div>

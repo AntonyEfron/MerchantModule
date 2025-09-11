@@ -2,19 +2,19 @@ import React, { useState } from "react";
 import { addBrand } from "../../api/products";
 import type { BrandPayload } from "../../api/products";
 import styles from "./AddBrandForm.module.css";
+import LogoCrop from "../Login/LogoCrop/LogoCrop";
 
 interface AddBrandFormProps {
   createdById: string;
-  createdByType: "Merchant" | "Admin";
+  createdByType: "Merchant";
 }
 
 const AddBrandForm: React.FC<AddBrandFormProps> = ({
   createdById,
   createdByType,
 }) => {
-  const [form, setForm] = useState<BrandPayload>({
+  const [form, setForm] = useState<Omit<BrandPayload, "description">>({
     name: "",
-    description: "",
     logo: null,
     createdById,
     createdByType,
@@ -24,16 +24,8 @@ const AddBrandForm: React.FC<AddBrandFormProps> = ({
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value, files } = e.target as HTMLInputElement;
-    if (name === "logo" && files) {
-      setForm((prev) => ({ ...prev, logo: files[0] }));
-    } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
-    }
-  };
+  // cropper modal state
+  const [isCropOpen, setIsCropOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,16 +36,16 @@ const AddBrandForm: React.FC<AddBrandFormProps> = ({
     try {
       await addBrand({
         ...form,
-        createdById,    // Always use the prop, not form state
-        createdByType,  // Always use the prop, not form state
+        createdById,
+        createdByType,
       });
       setSuccess("Brand added successfully!");
-      setForm((prev) => ({
-        ...prev,
+      setForm({
         name: "",
-        description: "",
         logo: null,
-      }));
+        createdById,
+        createdByType,
+      });
     } catch (err: any) {
       setError(
         err.response?.data?.error || "Failed to add brand. Please try again."
@@ -75,62 +67,62 @@ const AddBrandForm: React.FC<AddBrandFormProps> = ({
             name="name"
             value={form.name}
             required
-            onChange={handleChange}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, name: e.target.value }))
+            }
             placeholder="Enter brand name"
           />
         </div>
-        <div className={styles.formField}>
-          <label className={styles.formLabel}>Description:</label>
-          <input
-            className={styles.formInput}
-            type="text"
-            name="description"
-            value={form.description}
-            required
-            onChange={handleChange}
-            placeholder="Describe the brand"
-          />
-        </div>
+
         <div className={styles.formField}>
           <label className={styles.formLabel}>Logo:</label>
-          <input
-            className={styles.formFileInput}
-            type="file"
-            name="logo"
-            accept="image/*"
-            onChange={handleChange}
-          />
+          {form.logo ? (
+            <div className={styles.previewWrapper}>
+              <img
+                src={URL.createObjectURL(form.logo)}
+                alt="Logo preview"
+                className={styles.logoPreview}
+              />
+              <button
+                type="button"
+                className={styles.changeLogoBtn}
+                onClick={() => setIsCropOpen(true)}
+              >
+                Change Logo
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.formButton}
+              onClick={() => setIsCropOpen(true)}
+            >
+              Upload Logo
+            </button>
+          )}
         </div>
-        {/* <div className={styles.formField}>
-          <label className={styles.formLabel}>Created By Type:</label>
-          <input
-            className={styles.formInput}
-            type="text"
-            name="createdByType"
-            value={createdByType}
-            readOnly
-          />
-        </div>
-        <div className={styles.formField}>
-          <label className={styles.formLabel}>Created By Id:</label>
-          <input
-            className={styles.formInput}
-            type="text"
-            name="createdById"
-            value={createdById}
-            readOnly
-          />
-        </div> */}
+
         <button
           type="submit"
           className={styles.formButton}
-          disabled={loading}
+          disabled={loading || !form.logo}
         >
           {loading ? "Saving..." : "Add Brand"}
         </button>
+
         {success && <div className={styles.successMessage}>{success}</div>}
         {error && <div className={styles.errorMessage}>{error}</div>}
       </form>
+
+      {/* Cropper modal */}
+      <LogoCrop
+        isOpen={isCropOpen}
+        onClose={() => setIsCropOpen(false)}
+        onCrop={(file) => {
+          setForm((prev) => ({ ...prev, logo: file }));
+          setIsCropOpen(false);
+        }}
+      />
     </div>
   );
 };

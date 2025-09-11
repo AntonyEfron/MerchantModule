@@ -13,26 +13,86 @@ export const clearToken = (): void => {
   localStorage.removeItem('token');
 };
 
-// ===== AUTH API CALLS =====
-export const registerMerchant = async (
-  shopName: string,
-  ownerName: string,
-  email: string,
-  phoneNumber: string,
-  password: string,
-  category: string
-) => {
-  const res = await axiosInstance.post('merchant/register', {
-    shopName,
-    ownerName,
-    email,
-    phoneNumber,
-    password,
-    category,
-  });
-
-  return res.data; // Adjust based on backend response shape
+// 📧 Send OTP to email
+export const sendEmailOtp = async (data: { email: string }) => {
+  const res = await axiosInstance.post('merchant/auth/send-email-otp', data);
+  return res.data;
 };
+
+// 📧 Verify OTP
+export const verifyEmailOtp = async (data: { email: string; otp: string }) => {
+  const res = await axiosInstance.post('merchant/auth/verify-email-otp', data);
+  return res.data;
+};
+
+// ===== AUTH API CALLS =====
+// api/auth.ts
+export const registerEmail = async (data: { email: string }) => {
+  const res = await axiosInstance.post("merchant/register-email", data);
+  return res.data;
+};
+
+// 📱 Phone Registration
+export const registerPhone = async (data: { phoneNumber: string }) => {
+  const res = await axiosInstance.post("merchant/register-phone", data);
+  return res.data;
+};
+
+
+export const getMerchantByEmail = async (email: string) => {
+  try {
+    const res = await axiosInstance.get(`merchant/${email}`);
+    return res.data; // { success: true, merchant: { ... } }
+  } catch (error: any) {
+    console.error('Failed to fetch merchant by email:', error.response?.data || error.message);
+    return { success: false, merchant: null };
+  }
+};
+
+export const updateMerchantShopDetails = async (merchantId: string, data: any) => {
+  try {
+    const response = await axiosInstance.put(
+      `merchant/${merchantId}/shop-details`,
+      data,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating shop details:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const updateMerchantBankDetails = async (merchantId: string, data: any) => {
+  try {
+    const res = await axiosInstance.put(`/merchant/${merchantId}/bank-details`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error("Error updating bank details:", error.response?.data || error.message);
+    throw error.response?.data || { message: "Failed to update bank details" };
+  }
+};
+
+export const updateMerchantOperatingHours = async (merchantId: string, data: any) => {
+  try {
+    const res = await axiosInstance.put(`merchant/${merchantId}/operating-hours`, data);
+    return res.data;
+  } catch (error: any) {
+    console.error("Error updating operating hours:", error.response?.data || error.message);
+    throw error.response?.data || { message: "Failed to update operating hours" };
+  }
+};
+
+export const activateMerchant = async (merchantId: string) => {
+  try {
+    const res = await axiosInstance.put(`merchant/${merchantId}/activate`);
+    return res.data;
+  } catch (error: any) {
+    console.error("Error activating merchant:", error.response?.data || error.message);
+    throw error.response?.data || { message: "Failed to activate merchant" };
+  }
+};
+
 
 export const login = async (email: string, password: string) => {
   // console.log('resresresresresres');

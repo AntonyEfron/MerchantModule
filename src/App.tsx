@@ -1,113 +1,56 @@
-import React from 'react';
+import React from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
-  useLocation,
-} from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import { NotificationProvider } from './context/NotificationContext';
+  Outlet,
+} from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { ConfirmDialogProvider } from "./context/ConfirmDialogContext";
 
-import Login from './components/Login/Login';
-import Register from './components/Login/Register';
-import Sidebar from './components/Sidebar';
-import ProductPage from './components/ProductPage/ProductPage';
-// import Orders from './Pages/Order';
-import Accounts from './Pages/Accounts';
-// import RingNotification from './components/Order/RingNotification';
-// import OrderManagement from './components/Order/OrderManagement';
+import Login from "./components/Login/Login";
+import FlashFitsSignUp from "./components/Login/FlashFitsSignUp";
+import Register from "./components/Login/Register";
 
-// 👉 New pages
-import AddNewProduct from './components/Products/AddNewProduct';
-import AddBrandPage from './components/Brand/AddBrandPage';
-import NotificationBell from './components/Order/styles/NotificationBell';
+import AppLayout from "./AppLayout";
+import ProductPage from "./components/ProductPage/ProductPage";
+import OrderManagement from "./components/Order/OrderManagement";
+import AddNewProduct from "./components/Products/AddNewProduct";
+import AddBrandPage from "./components/Brand/AddBrandPage";
 
-// Layout
-function AppLayout({ children }: { children: React.ReactNode }) {
-  const { token, logout } = useAuth();
-  const location = useLocation();
-  const publicPaths = ['/merchant/login', '/merchant/register'];
-  const isPublicPage = publicPaths.includes(location.pathname);
-
-  const [sidebarOpen, setSidebarOpen] = React.useState(true);
-  const [isMobile, setIsMobile] = React.useState(window.innerWidth <= 768);
-
-  React.useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const sidebarWidth = sidebarOpen ? 260 : 80;
-
-const mainContentStyle: React.CSSProperties = {
-  flex: 1,
-  padding: "2.5rem 2rem",
-  background: "#f4f4f9",
-  minHeight: "100vh",
-  transition: "margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  marginLeft: token
-    ? isMobile
-      ? (sidebarOpen ? 60 : 0) // 👈 give small margin when sidebar open on mobile
-      : sidebarWidth
-    : 0,
-  width: token
-    ? isMobile
-      ? "100%" // keep full width
-      : `calc(100% - ${sidebarWidth}px)`
-    : "100%",
-};
-
-  return (
-    <div style={{ display: "flex", minHeight: "100vh", width: "100%" }}>
-      {token && (
-        <Sidebar
-          onLogout={logout}
-          onToggle={(isOpen) => setSidebarOpen(isOpen)}
-        />
-      )}
-      <div style={mainContentStyle}>
-        {children}
-        <NotificationBell />
-      </div>
-    </div>
-  );
-}
-
-
-function AppRoot() {
+const AppRoot: React.FC = () => {
   return (
     <AuthProvider>
       <NotificationProvider>
         <NotificationBell />
         <ConfirmDialogProvider>
-        <Router>
-          <AppLayout>
+          <Router>
             <Routes>
-              {/* Public */}
+              {/* Public Routes */}
               <Route path="/merchant/login" element={<Login />} />
+              <Route path="/merchant/signup" element={<FlashFitsSignUp />} />
               <Route path="/merchant/register" element={<Register />} />
 
-              {/* Product + Brand Pages */}
-              <Route path="/merchant/products" element={<ProductPage />} />
-              <Route path="/add-product" element={<AddNewProduct />} />
-              <Route path="/add-brand" element={<AddBrandPage />} />
+              {/* Dashboard with Sidebar */}
+              <Route path="/merchant" element={<AppLayout />}>
+                <Route path="products" element={<ProductPage />} />
+                <Route path="orders" element={<OrderManagement />} />
+                <Route path="accounts" element={<OrderManagement />} />
+                <Route path="add-product" element={<AddNewProduct />} />
+                <Route path="add-brand" element={<AddBrandPage />} />
+                <Route index element={<Navigate to="products" />} />
+              </Route>
 
-              {/* Others */}
-              <Route path="/merchant/orders" element={<Accounts />} />
-              <Route path="/merchant/accounts" element={<Accounts />} />
-
-              {/* Default */}
-              <Route path="/" element={<Navigate to="/merchant/products" />} />
+              {/* Catch-all redirect */}
+              <Route path="*" element={<Navigate to="/merchant/products" />} />
             </Routes>
-          </AppLayout>
-        </Router>
+          </Router>
         </ConfirmDialogProvider>
       </NotificationProvider>
     </AuthProvider>
   );
-}
+};
 
 export default AppRoot;

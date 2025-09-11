@@ -37,14 +37,18 @@ export const deleteProduct = async (productId) => {
 };
 
 export const getCategories = async () => {
+
   try {
     const response = await axiosInstance.get('/merchant/getCategories');
+    // console.log(response.data,'responsere33333333xsponse');
+
     return response.data;
   } catch (error) {
     console.log(error)
     throw error.response ? error.response.data : new Error('Network Error');
   }
 };
+
 
 export interface AddBrandResponse {
   brand: {
@@ -195,6 +199,20 @@ export const updateSizeCount = async (productId, variantId, sizeData) => {
   }
 };
 
+export const updatePrice = async (productId, variantId, priceData) => {
+  const { mrp, price, discount } = priceData;
+
+  console.log(productId, variantId, priceData);
+
+  try {
+    const url = `merchant/updatePrice/${productId}/${variantId}`;
+    const res = await axiosInstance.put(url, { mrp, price, discount });
+    return res.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.message || "Price update failed");
+  }
+};
+
 export const deleteVariantSizes = async (productId, variantId, sizeId) => {
   console.log(productId, variantId, sizeId);
   
@@ -219,10 +237,14 @@ export const getBaseProductById = async (productId) => {
 }
 
 export const fetchProductsByMerchantId = async (merchantId) => {
+
+  
   try {
     const res = await axiosInstance.get(
       `merchant/fetchProductsByMerchantId/${merchantId}`
     );
+  // console.log(res.data,'res.data');
+
     // console.log("Fetched products:", res.data); // ✅ actual data
     return res.data;  // axios automatically parses JSON
   } catch (error) {

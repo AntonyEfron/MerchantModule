@@ -1,9 +1,16 @@
-
-// components/common/ConfirmDialog.jsx
+// components/utils/popup/ConfirmDialog.jsx
 import React from "react";
-import './ConfirmDialog .css'
+import "./ConfirmDialog.css";
 
-const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
+const ConfirmDialog = ({
+  title,
+  message,
+  onConfirm,
+  onCancel,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  confirmColor = "red", // default green
+}) => {
   return (
     <div className="confirm-overlay">
       <div className="confirm-box">
@@ -11,10 +18,14 @@ const ConfirmDialog = ({ title, message, onConfirm, onCancel }) => {
         <p className="confirm-message">{message}</p>
         <div className="confirm-actions">
           <button className="confirm-btn cancel" onClick={onCancel}>
-            Cancel
+            {cancelLabel}
           </button>
-          <button className="confirm-btn delete" onClick={onConfirm}>
-            Delete
+          <button
+            className="confirm-btn"
+            style={{ backgroundColor: confirmColor, color: "#fff" }}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
           </button>
         </div>
       </div>

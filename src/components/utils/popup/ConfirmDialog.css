@@ -11,7 +11,8 @@
   background: #fff;
   padding: 1.5rem;
   border-radius: 12px;
-  width: 320px;
+  width: 500px;
+  height: 170px;
   text-align: center;
   box-shadow: 0 6px 18px rgba(0,0,0,0.2);
 }
@@ -47,4 +48,13 @@
 .confirm-btn.delete {
   background: #e53935;
   color: #fff;
+}
+.confirm-btn.online {
+  background-color: #4caf50; /* Green */
+  color: white;
+}
+
+.confirm-btn.offline {
+  background-color: #f44336; /* Red */
+  color: white;
 }

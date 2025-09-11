@@ -1,211 +1,116 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  ReactNode,
-} from 'react';
-import { fetchMerchantOrders } from '../api/order';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { emitter } from "../utils/socket";
+import { acceptOrRejectOrder } from "../api/order";
 
-// ---- Types ----
+const NotificationContext = createContext(null);
 
-export interface Order {
-  id: string;
-  customerName: string;
-  items: string[];
-  total: number;
-  timestamp: Date;
-  status: 'pending' | 'accepted' | 'packaging' | 'packed' | 'in-transit' | 'completed' | 'returned';
-  acceptedAt?: Date;
-  packedAt?: Date;
-  transitAt?: Date;
-  completedAt?: Date;
-  returnedAt?: Date;
-}
+export const NotificationProvider = ({ children }) => {
+  const [ordersQueue, setOrdersQueue] = useState([]);
+  const [newOrderCount, setNewOrderCount] = useState(0);
+  const [currentOrder, setCurrentOrder] = useState(null);
 
-// ---- Context Interface ----
-
-interface NotificationContextType {
-  pendingOrders: Order[];
-  acceptedOrders: Order[];
-  packedOrders: Order[];
-  transitOrders: Order[];
-  completedOrders: Order[];
-  returnedOrders: Order[];
-  playRing: boolean;
-  stopRing: () => void;
-  addIncomingOrder: (order: Order) => void;
-  acceptOrder: (orderId: string) => void;
-  rejectOrder: (orderId: string) => void;
-  markOrderPacked: (orderId: string) => void;
-  markOrderInTransit: (orderId: string) => void;
-  completeOrder: (orderId: string) => void;
-  returnOrder: (orderId: string, fromPhase: 'transit' | 'completed') => void;
-}
-
-// ---- Context ----
-
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
-
-// ---- Provider Component ----
-
-export const NotificationProvider = ({ children }: { children: ReactNode }) => {
-  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
-  const [acceptedOrders, setAcceptedOrders] = useState<Order[]>([]);
-  const [packedOrders, setPackedOrders] = useState<Order[]>([]);
-  const [transitOrders, setTransitOrders] = useState<Order[]>([]);
-  const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
-  const [returnedOrders, setReturnedOrders] = useState<Order[]>([]);
-  const [playRing, setPlayRing] = useState(false);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Audio setup
   useEffect(() => {
-    audioRef.current = new Audio('/notification-sound.mp3');
-    audioRef.current.loop = true;
-    audioRef.current.preload = 'auto';
-    return () => {
-      audioRef.current?.pause();
-      audioRef.current = null;
+    const handler = (order) => {
+      setOrdersQueue((prev) => [...prev, order]);
+      setNewOrderCount((prev) => prev + 1);
     };
+
+    emitter.on("newOrder", handler);
+
+    return () => emitter.off("newOrder", handler);
   }, []);
 
-  // Fetch initial orders on mount
+  // Show the next order when currentOrder is null and queue has items
   useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const apiOrders = await fetchMerchantOrders();
-        // Distribute to state arrays based on status
-        setPendingOrders(apiOrders.filter(o => o.status === 'pending'));
-        setAcceptedOrders(apiOrders.filter(o => o.status === 'packaging' || o.status === 'accepted'));
-        setPackedOrders(apiOrders.filter(o => o.status === 'packed'));
-        setTransitOrders(apiOrders.filter(o => o.status === 'in-transit'));
-        setCompletedOrders(apiOrders.filter(o => o.status === 'completed'));
-        setReturnedOrders(apiOrders.filter(o => o.status === 'returned'));
-      } catch (error) {
-        console.error('Failed to fetch orders:', error);
-      }
-    };
-    loadOrders();
-  }, []);
-
-  // Notification audio
-  const playNotification = useCallback(() => {
-    setPlayRing(true);
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(err => {
-        if (err.name !== 'AbortError') console.error(err);
-      });
+    if (!currentOrder && ordersQueue.length > 0) {
+      setCurrentOrder(ordersQueue[0]);
+      setOrdersQueue((prev) => prev.slice(1));
     }
-  }, []);
+  }, [ordersQueue, currentOrder]);
 
-  const stopRing = useCallback(() => {
-    setPlayRing(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+  const closePopup = () => {
+    setCurrentOrder(null);
+  };
+
+  const acceptOrder = async() => {
+    try {
+      await acceptOrRejectOrder(currentOrder.id);
+    } catch (error) {
+      console.log(error);
     }
-  }, []);
+    console.log("✅ Accept order:", currentOrder);
+    closePopup();
+    // call API or other logic here
+  };
 
-  // ----- Order Actions -----
-
-  const addIncomingOrder = useCallback((order: Order) => {
-    setPendingOrders(prev => [...prev, { ...order, status: 'pending' }]);
-    playNotification();
-  }, [playNotification]);
-
-  const acceptOrder = useCallback((orderId: string) => {
-    setPendingOrders(prevPending => {
-      const order = prevPending.find(o => o.id === orderId);
-      if (!order) return prevPending;
-      setAcceptedOrders(prev => [...prev, { ...order, status: 'packaging', acceptedAt: new Date() }]);
-      return prevPending.filter(o => o.id !== orderId);
-    });
-  }, []);
-
-  const rejectOrder = useCallback((orderId: string) => {
-    setPendingOrders(prev => prev.filter(o => o.id !== orderId));
-  }, []);
-
-  const markOrderPacked = useCallback((orderId: string) => {
-    setAcceptedOrders(prevAccepted => {
-      const order = prevAccepted.find(o => o.id === orderId);
-      if (!order) return prevAccepted;
-      setPackedOrders(prev => [...prev, { ...order, status: 'packed', packedAt: new Date() }]);
-      return prevAccepted.filter(o => o.id !== orderId);
-    });
-  }, []);
-
-  const markOrderInTransit = useCallback((orderId: string) => {
-    setPackedOrders(prevPacked => {
-      const order = prevPacked.find(o => o.id === orderId);
-      if (!order) return prevPacked;
-      setTransitOrders(prev => [...prev, { ...order, status: 'in-transit', transitAt: new Date() }]);
-      return prevPacked.filter(o => o.id !== orderId);
-    });
-  }, []);
-
-  const completeOrder = useCallback((orderId: string) => {
-    setTransitOrders(prevTransit => {
-      const order = prevTransit.find(o => o.id === orderId);
-      if (!order) return prevTransit;
-      setCompletedOrders(prev => [...prev, { ...order, status: 'completed', completedAt: new Date() }]);
-      return prevTransit.filter(o => o.id !== orderId);
-    });
-  }, []);
-
-  const returnOrder = useCallback((orderId: string, fromPhase: 'transit'|'completed') => {
-    let order: Order | undefined = undefined;
-    if (fromPhase === 'transit') {
-      setTransitOrders(prev => {
-        order = prev.find(o => o.id === orderId);
-        return prev.filter(o => o.id !== orderId);
-      });
-    } else if (fromPhase === 'completed') {
-      setCompletedOrders(prev => {
-        order = prev.find(o => o.id === orderId);
-        return prev.filter(o => o.id !== orderId);
-      });
+  const rejectOrder = async() => {
+    try {
+      await acceptOrRejectOrder(currentOrder.id);
+    } catch (error) {
+      console.log(error);
     }
-    if (order) {
-      setReturnedOrders(prev => [...prev, { ...order!, status: 'returned', returnedAt: new Date() }]);
-    }
-  }, []);
-
-  // ---- Provider value ----
-  const contextValue: NotificationContextType = {
-    pendingOrders,
-    acceptedOrders,
-    packedOrders,
-    transitOrders,
-    completedOrders,
-    returnedOrders,
-    playRing,
-    stopRing,
-    addIncomingOrder,
-    acceptOrder,
-    rejectOrder,
-    markOrderPacked,
-    markOrderInTransit,
-    completeOrder,
-    returnOrder,
+    console.log("❌ Reject order:", currentOrder);
+    closePopup();
+    // call API or other logic here
   };
 
   return (
-    <NotificationContext.Provider value={contextValue}>
+    <NotificationContext.Provider value={{ newOrderCount }}>
       {children}
+
+      {/* Popup overlay */}
+      {currentOrder && (
+        <div style={styles.overlay}>
+          <div style={styles.popup}>
+            <h3>📩 New Order!</h3>
+            <p>Order ID: {currentOrder.id}</p>
+            <p>Customer: {currentOrder.customerName}</p>
+            <p>Total: ${currentOrder.total}</p>
+            <button onClick={acceptOrder} style={styles.acceptBtn}>✅ Accept</button>
+            <button onClick={rejectOrder} style={styles.rejectBtn}>❌ Reject</button>
+          </div>
+        </div>
+      )}
     </NotificationContext.Provider>
   );
 };
 
-// ---- Context Consumer Hook ----
+export const useNotifications = () => useContext(NotificationContext);
 
-export const useNotifications = () => {
-  const context = useContext(NotificationContext);
-  if (!context) throw new Error('useNotifications must be used within NotificationProvider');
-  return context;
+const styles = {
+  overlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 9999
+  },
+  popup: {
+    backgroundColor: '#fff',
+    padding: '20px',
+    borderRadius: '8px',
+    textAlign: 'center',
+    width: '300px',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+  },
+  acceptBtn: {
+    backgroundColor: '#4CAF50',
+    color: 'white',
+    marginRight: '10px',
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '5px'
+  },
+  rejectBtn: {
+    backgroundColor: '#f44336',
+    color: 'white',
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '5px'
+  }
 };

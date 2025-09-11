@@ -1,13 +1,28 @@
 import { io, Socket } from "socket.io-client";
-import mitt from "mitt";
+import mitt , {type Emitter} from "mitt";
+import type {Order} from '../context/NotificationContext';
+
 let socket: Socket | null = null;
 
-export const emitter = mitt();
+// Define the events
+type Events = {
+  newOrder: Order;
+  orderUpdate: Order;
+};
+
+// Typed emitter
+export const emitter: Emitter<Events> = mitt<Events>();
 
 export const connectSocket = (merchantId: string) => {
+ 
+  const role ="merchant";
+  // socket = io("http://192.168.0.106:5000", {
+  //   transports: ["websocket"],
+  //   query: { merchantId, role }, // pass merchantId for backend mapping
+  // });
   socket = io("http://192.168.29.230:5000", {
     transports: ["websocket"],
-    query: { merchantId }, // pass merchantId for backend mapping
+    query: { merchantId, role }, // pass merchantId for backend mapping
   });
 
   socket.on("connect", () => {
@@ -24,6 +39,12 @@ export const connectSocket = (merchantId: string) => {
     socket.on("orderUpdate", (order) => {
       console.log("📦 Order update received:", order);
       emitter.emit("orderUpdate", order); // re-emit for components
+    });
+
+    socket.on("newOrder", (orderData) => {
+      console.log("📩 Received new order:", orderData);
+      emitter.emit("newOrder", orderData);
+      // You can dispatch redux action or show notification here
     });
 
   return socket;

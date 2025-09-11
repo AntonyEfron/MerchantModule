@@ -13,3 +13,10 @@ export const fetchMerchantOrders = async () => {
     returnedAt: order.returnedAt ? new Date(order.returnedAt) : undefined,
   }));
 };
+
+export const acceptOrRejectOrder = async (orderId: string , status: string) => {
+  console.log(orderId,status);
+  
+  const response = await axiosInstance.put(`merchant/orderRequestForMerchant/${orderId}`,{status});
+  return response.data;
+};

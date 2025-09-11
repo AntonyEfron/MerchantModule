@@ -16,12 +16,13 @@ import Sidebar from './components/Sidebar';
 import ProductPage from './components/ProductPage/ProductPage';
 // import Orders from './Pages/Order';
 import Accounts from './Pages/Accounts';
-import RingNotification from './components/Order/RingNotification';
-import OrderManagement from './components/Order/OrderManagement';
+// import RingNotification from './components/Order/RingNotification';
+// import OrderManagement from './components/Order/OrderManagement';
 
 // 👉 New pages
 import AddNewProduct from './components/Products/AddNewProduct';
 import AddBrandPage from './components/Brand/AddBrandPage';
+import NotificationBell from './components/Order/styles/NotificationBell';
 
 // Layout
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -69,7 +70,7 @@ const mainContentStyle: React.CSSProperties = {
       )}
       <div style={mainContentStyle}>
         {children}
-        <RingNotification />
+        <NotificationBell />
       </div>
     </div>
   );
@@ -80,6 +81,7 @@ function AppRoot() {
   return (
     <AuthProvider>
       <NotificationProvider>
+        <NotificationBell />
         <ConfirmDialogProvider>
         <Router>
           <AppLayout>
@@ -94,7 +96,7 @@ function AppRoot() {
               <Route path="/add-brand" element={<AddBrandPage />} />
 
               {/* Others */}
-              <Route path="/merchant/orders" element={<OrderManagement />} />
+              <Route path="/merchant/orders" element={<Accounts />} />
               <Route path="/merchant/accounts" element={<Accounts />} />
 
               {/* Default */}

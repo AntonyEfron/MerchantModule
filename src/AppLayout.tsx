@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Sidebar from "./components/Sidebar";
-import RingNotification from "./components/Order/RingNotification";
+import NotificationBell from "./components/Order/styles/NotificationBell";
+// import RingNotification from "./components/Order/RingNotification";
 
 const AppLayout: React.FC = () => {
   const { token, logout } = useAuth();
@@ -37,7 +38,7 @@ const AppLayout: React.FC = () => {
         />
       <div style={mainContentStyle}>
         <Outlet />
-        <RingNotification />
+        <NotificationBell />
       </div>
     </div>
   );

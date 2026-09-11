@@ -23,21 +23,12 @@ const steps = [
   { number: 4, title: "Final Setup", subtitle: "Operating hours & activation" },
 ];
 
-/*
-const businessTypes = [
-  "Individual",
-  "Sole Proprietor",
-  "Partnership",
-  "Company",
-];
-
 const businessProofTypes = [
   { id: 'shop_license', label: 'Shop & Establishment License' },
   { id: 'gst_cert', label: 'GST Certificate' },
   { id: 'udyam', label: 'Udyam Registration (MSME)' },
   { id: 'rent_agreement', label: 'Rental Agreement' },
 ];
-*/
 
 const genderCategories = ["Men", "Women", "Boys", "Girls"];
 
@@ -102,7 +93,6 @@ const Register = () => {
     panNumber: "",
     panImage: null as File | string | null,
     gstNumber: "",
-    gstImage: null as File | string | null,
     businessProofType: "",
     businessProofImage: null as File | string | null,
     bankProofImage: null as File | string | null,
@@ -348,7 +338,6 @@ const Register = () => {
         data.append("gstNumber", formData.gstNumber);
         data.append("businessProofType", formData.businessProofType);
         if (formData.panImage instanceof File) data.append("panImage", formData.panImage);
-        if (formData.gstImage instanceof File) data.append("gstImage", formData.gstImage);
         if (formData.businessProofImage instanceof File) data.append("businessProofImage", formData.businessProofImage);
         if (formData.bankProofImage instanceof File) data.append("bankProofImage", formData.bankProofImage);
 
@@ -873,48 +862,35 @@ const Register = () => {
                       <label>GST Number (Optional)</label>
                       <input className="form-input uppercase" placeholder="27ABCDE1234F1Z5" value={formData.gstNumber} onChange={(e) => updateFormData("gstNumber", e.target.value)} />
                     </div>
-                    <div className="form-group">
-                      <label>GST Certificate (Optional)</label>
-                      <div className="logo-container">
-                        <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, "gstImage")} className="text-xs" />
-                        {formData.gstImage && (
-                          <p className="successMessage">
-                            ✓ {formData.gstImage instanceof File ? formData.gstImage.name : "Uploaded"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
                 <hr className="border-gray-100" />
 
                 <div className="space-y-6">
-              {/* Business Proof hidden for now
-              <div className="form-group">
-                <label>Business Proof Type</label>
-                <select className="form-input" value={formData.businessProofType} onChange={(e) => updateFormData("businessProofType", e.target.value)}>
-                  <option value="">Select Proof Type</option>
-                  {businessProofTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                </select>
-                {errors.businessProofType && <p className="error">{errors.businessProofType}</p>}
-              </div>
-              */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Business Proof hidden for now
-                <div className="form-group">
-                  <label>Business Proof Image</label>
-                  <div className="logo-container">
-                    <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, "businessProofImage")} className="text-xs" />
-                    {formData.businessProofImage && (
-                      <p className="successMessage">
-                        ✓ {formData.businessProofImage instanceof File ? formData.businessProofImage.name : "Uploaded"}
-                      </p>
-                    )}
+                  <div className="form-group">
+                    <label>Business Proof Type (Optional)</label>
+                    <select className="form-input" value={formData.businessProofType} onChange={(e) => updateFormData("businessProofType", e.target.value)}>
+                      <option value="">Select Proof Type</option>
+                      {businessProofTypes.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </select>
+                    {errors.businessProofType && <p className="error">{errors.businessProofType}</p>}
                   </div>
-                  {errors.businessProofImage && <p className="error">{errors.businessProofImage}</p>}
-                </div>
-                */}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="form-group">
+                      <label>Business Proof Image</label>
+                      <div className="logo-container">
+                        <input type="file" accept="image/*,application/pdf" onChange={(e) => handleFileChange(e, "businessProofImage")} className="text-xs" />
+                        {formData.businessProofImage && (
+                          <p className="successMessage">
+                            ✓ {formData.businessProofImage instanceof File ? formData.businessProofImage.name : "Uploaded"}
+                          </p>
+                        )}
+                      </div>
+                      {errors.businessProofImage && <p className="error">{errors.businessProofImage}</p>}
+                    </div>
+
                     <div className="form-group">
                       <label>Bank Proof Image (Cheque/Passbook)</label>
                       <div className="logo-container">

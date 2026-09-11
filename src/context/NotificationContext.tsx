@@ -67,19 +67,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   useEffect(() => {
     if (!token) return; // Prevent infinite loop: do not fetch or listen if unauthenticated
 
-    const handler = (order: Order) => {
+    const handler = (order: any) => {
+      if (!order) return;
+      const orderId = order._id || order.orderId || order.id;
+      if (!orderId) return;
+      const normalizedOrder: Order = {
+        ...order,
+        _id: String(orderId),
+      };
+
       setOrdersQueue((prev) => {
-        if (prev.some((o) => o._id === order._id)) return prev; // Avoid duplicates
-        return [...prev, order];
+        if (prev.some((o) => o._id === normalizedOrder._id)) return prev; // Avoid duplicates
+        return [...prev, normalizedOrder];
       });
 
       // Increase only when truly new
       setNewOrderCount((prev) =>
-        ordersQueue.some((o) => o._id === order._id) ? prev : prev + 1
+        ordersQueue.some((o) => o._id === normalizedOrder._id) ? prev : prev + 1
       );
     };
 
     emitter.on("newOrder", handler);
+    emitter.on("newWarehouseOrder", handler);
 
     const loadPlacedOrders = async () => {
       try {
@@ -276,7 +285,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
                       Order ID
                     </span>
                     <span className="font-mono text-xs sm:text-sm bg-gray-100 px-3! py-1! rounded-full text-gray-800 truncate ml-2! max-w-[60%]">
-                      #{currentOrder._id.slice(-8)}
+                      #{currentOrder?._id ? String(currentOrder._id).slice(-8).toUpperCase() : '------'}
                     </span>
                   </div>
 

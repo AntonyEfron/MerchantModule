@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Package, RotateCcw, CheckCircle, XCircle, DollarSign, Wallet, Calendar, ListOrdered, Clock, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Package, RotateCcw, CheckCircle, XCircle, DollarSign, Calendar, ListOrdered, ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { getMerchantAnalytics, getMerchantCurrentWeek } from '../api/analytics';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./DynamicSizesInput.css";
 
-export type Size = { size: string; stock: number };
+export type Size = { size: string; stock: number; merchantSizeCode?: string };
 
 interface DynamicSizesInputProps {
   sizes: Size[];
@@ -10,11 +10,11 @@ interface DynamicSizesInputProps {
 
 export default function DynamicSizesInput({ sizes, setSizes }: DynamicSizesInputProps) {
   const [entries, setEntries] = useState<Size[]>(
-    sizes && sizes.length ? sizes : [{ size: "", stock: 0 }]
+    sizes && sizes.length ? sizes : [{ size: "", stock: 0, merchantSizeCode: "" }]
   );
 
   useEffect(() => {
-    setEntries(sizes && sizes.length ? sizes : [{ size: "", stock: 0 }]);
+    setEntries(sizes && sizes.length ? sizes : [{ size: "", stock: 0, merchantSizeCode: "" }]);
   }, [sizes]);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function DynamicSizesInput({ sizes, setSizes }: DynamicSizesInput
   };
 
   const addSize = () => {
-    setEntries([...entries, { size: "", stock: 0 }]);
+    setEntries([...entries, { size: "", stock: 0, merchantSizeCode: "" }]);
   };
 
   const removeSize = (index: number) => {
@@ -59,6 +59,13 @@ export default function DynamicSizesInput({ sizes, setSizes }: DynamicSizesInput
             onChange={(e) => handleChange(index, "stock", e.target.value)}
             className="dynsizes-input"
             min={0}
+          />
+          <input
+            type="text"
+            placeholder="Code/SKU (Opt)"
+            value={entry.merchantSizeCode || ""}
+            onChange={(e) => handleChange(index, "merchantSizeCode", e.target.value)}
+            className="dynsizes-input"
           />
           <button
             type="button"

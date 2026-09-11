@@ -254,10 +254,6 @@ const AddVariant: React.FC<AddVariantProps> = ({ createdProductId }) => {
             </div>
           </div>
           <div className="product-info-item">
-            <div className="info-label">Triable</div>
-            <div className="info-value">{product.isTriable ? "Yes" : "No"}</div>
-          </div>
-          <div className="product-info-item">
             <div className="info-label">Status</div>
             <div
               className="info-value"
@@ -284,9 +280,9 @@ const AddVariant: React.FC<AddVariantProps> = ({ createdProductId }) => {
             value={selectedVariantIndex ?? ""}
           >
             <option value="">-- Select Existing Variant --</option>
-            {product.variants.map((variant, i) => (
+            {product.variants?.map((variant, i) => (
               <option key={i} value={i}>
-                {variant.color.name || `Variant ${i + 1}`}
+                {variant.color?.name || `Variant ${i + 1}`}
               </option>
             ))}
           </select>

@@ -367,3 +367,8 @@ export const applyForWarehouseService = async (): Promise<any> => {
   const response = await axiosInstance.post('/merchant/apply-warehouse');
   return response.data;
 };
+
+export const updateMatchingProducts = async (productId: string, matchingProducts: string[]): Promise<any> => {
+  const response = await axiosInstance.put(`/merchant/updateMatchingProducts/${productId}`, { matchingProducts });
+  return response.data;
+};

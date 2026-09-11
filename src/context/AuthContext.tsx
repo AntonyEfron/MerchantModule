@@ -4,6 +4,7 @@ import axiosInstance, { authEvents } from "../utils/axiosInstance";
 
 interface Merchant {
   id: string;
+  _id?: string;
   shopName: string;
   email: string;
   phoneNumber: string;

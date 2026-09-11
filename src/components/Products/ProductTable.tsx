@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Edit,
   Trash2,
@@ -38,12 +38,6 @@ export default function ProductTable({ merchantId }: { merchantId: string }) {
     };
     load();
   }, [merchantId]);
-
-  const toggleExpand = (id: string) => {
-    const copy = new Set(expandedRows);
-    copy.has(id) ? copy.delete(id) : copy.add(id);
-    setExpandedRows(copy);
-  };
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {

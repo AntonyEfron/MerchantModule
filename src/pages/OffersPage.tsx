@@ -303,7 +303,7 @@ function OfferCard({ offer, onToggle, onEdit, onDelete }: {
   );
 }
 
-//function OfferFormModal({ offer, submitting, onSubmit, onClose }: {
+function OfferFormModal({ offer, submitting, onSubmit, onClose }: {
   offer: Offer | null;
   submitting: boolean;
   onSubmit: (data: OfferFormData) => void;
@@ -359,8 +359,6 @@ function OfferCard({ offer, onToggle, onEdit, onDelete }: {
 
     onSubmit({ ...form, benefitType: autoBenefitType as any });
   };
-
-  const selectedType = OFFER_TYPES.find((t) => t.value === form.type);
 
   return (
     <div style={{
@@ -629,10 +627,6 @@ function OfferCard({ offer, onToggle, onEdit, onDelete }: {
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}form>
       </div>
     </div>
   );

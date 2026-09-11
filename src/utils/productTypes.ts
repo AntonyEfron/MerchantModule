@@ -1,6 +1,7 @@
 export interface Size {
   size: string;
   stock: number;
+  merchantSizeCode?: string;
 }
 
 export interface Variant {

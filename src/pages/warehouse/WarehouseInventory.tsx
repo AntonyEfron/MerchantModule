@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchMyWarehouseProducts,
-  addMyWarehouseProduct,
-  updateMyWarehouseProduct,
+  addMyWarehouseProductFull,
   addMyWarehouseProductVariant,
   updateMyWarehouseProductStock,
   deleteMyWarehouseProduct
 } from '../../api/warehouseOrder';
-import { getCategories } from '../../api/products';
+import { fetchProductsByMerchantId } from '../../api/products';
 import axiosInstance from '../../utils/axiosInstance';
-import { Plus, Trash2, Edit, Layers, Image as ImageIcon, Box, Loader2, X, PlusCircle } from 'lucide-react';
+import { Plus, Trash2, Edit, Image as ImageIcon, Box, Loader2, X, Link as LinkIcon, Search, Check, AlertCircle } from 'lucide-react';
 import VariantForm from '../../components/Products/VariantForm';
 
 interface SizeStock {
@@ -21,7 +20,7 @@ interface SizeStock {
 interface Variant {
   _id: string;
   color: { name: string; hex: string };
-  sizes: SizeStock[];
+  sizes?: SizeStock[];
   mrp: number;
   price: number;
   discount: number;
@@ -35,7 +34,7 @@ interface WarehouseProduct {
   gender: string[];
   isTriable: boolean;
   commissionRate: number | null;
-  variants: Variant[];
+  variants?: Variant[];
   merchantId?: { shopName: string };
   brandId?: { name: string };
   categoryId?: { name: string };
@@ -44,28 +43,24 @@ interface WarehouseProduct {
 const WarehouseInventory: React.FC = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<WarehouseProduct[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [merchants, setMerchants] = useState<any[]>([]);
-  const [brands, setBrands] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<WarehouseProduct | null>(null);
 
-  // Form State - Add Product
-  const [productForm, setProductForm] = useState({
-    name: '',
-    description: '',
-    brandId: '',
-    categoryId: '',
-    merchantId: '',
-    gender: 'Men',
-    isTriable: true,
-    commissionRate: ''
-  });
+  // Link Modal State
+  const [linkMerchantId, setLinkMerchantId] = useState('');
+  const [merchantProducts, setMerchantProducts] = useState<any[]>([]);
+  const [loadingMerchantProducts, setLoadingMerchantProducts] = useState(false);
+  const [selectedMerchantProduct, setSelectedMerchantProduct] = useState<any | null>(null);
+  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [linkStockMap, setLinkStockMap] = useState<{ [size: string]: number }>({});
+  const [linkCommissionRate, setLinkCommissionRate] = useState('');
+  const [submittingLink, setSubmittingLink] = useState(false);
 
   // Form State - Edit Stock
   const [stockForm, setStockForm] = useState({
@@ -77,15 +72,11 @@ const WarehouseInventory: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [prodRes, catRes, brandRes, merchantRes] = await Promise.all([
+      const [prodRes, merchantRes] = await Promise.all([
         fetchMyWarehouseProducts().catch(() => ({ products: [] })),
-        getCategories().catch(() => ({ categories: [] })),
-        axiosInstance.get('/merchant/brand/getAllBrands').catch(() => ({ data: { brands: [] } })),
         axiosInstance.get('/merchant/assigned-merchants').catch(() => ({ data: { merchants: [] } }))
       ]);
       setProducts(prodRes.products || prodRes.data?.products || []);
-      setCategories(catRes.categories || []);
-      setBrands(brandRes.data?.brands || []);
       setMerchants(merchantRes.data?.merchants || merchantRes.data?.data?.merchants || []);
     } catch (err) {
       console.error('Failed to load warehouse inventory data:', err);
@@ -98,22 +89,121 @@ const WarehouseInventory: React.FC = () => {
     loadData();
   }, []);
 
-  const handleProductSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!productForm.name || !productForm.categoryId || !productForm.merchantId) {
-      alert('Name, Category, and Source Merchant are required');
+  // Fetch products of selected merchant for linking
+  useEffect(() => {
+    if (!linkMerchantId) {
+      setMerchantProducts([]);
+      setSelectedMerchantProduct(null);
+      setLinkStockMap({});
       return;
     }
-    try {
-      await addMyWarehouseProduct({
-        ...productForm,
-        commissionRate: productForm.commissionRate ? parseFloat(productForm.commissionRate as string) : null
+    setLoadingMerchantProducts(true);
+    setSelectedMerchantProduct(null);
+    setLinkStockMap({});
+    fetchProductsByMerchantId(linkMerchantId)
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res?.products || [];
+        setMerchantProducts(list);
+      })
+      .catch((err) => {
+        console.error('Failed to load merchant products for linking:', err);
+        setMerchantProducts([]);
+      })
+      .finally(() => setLoadingMerchantProducts(false));
+  }, [linkMerchantId]);
+
+  const handleSelectLinkProduct = (prod: any) => {
+    setSelectedMerchantProduct(prod);
+    const initialStock: { [size: string]: number } = {};
+    if (prod.sizes && Array.isArray(prod.sizes)) {
+      prod.sizes.forEach((s: any) => {
+        initialStock[s.size] = 0;
       });
-      alert('Product created! Now click "Add Variant" on the product to add stock and colors.');
-      setIsProductModalOpen(false);
+    }
+    setLinkStockMap(initialStock);
+  };
+
+  const handleLinkProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkMerchantId) {
+      alert('Please select a source merchant');
+      return;
+    }
+    if (!selectedMerchantProduct) {
+      alert('Please select an existing merchant product to link');
+      return;
+    }
+
+    try {
+      setSubmittingLink(true);
+      const formData = new FormData();
+      formData.append('merchantId', linkMerchantId);
+      if (linkCommissionRate) {
+        formData.append('commissionRate', linkCommissionRate);
+      }
+      formData.append('linkedMerchantProductId', selectedMerchantProduct.id || selectedMerchantProduct.styleGroupId || selectedMerchantProduct._id || '');
+      formData.append('name', selectedMerchantProduct.name || '');
+      formData.append('styleName', selectedMerchantProduct.styleName || '');
+      formData.append('description', selectedMerchantProduct.description || '');
+      formData.append('categoryId', selectedMerchantProduct.categoryId?._id || selectedMerchantProduct.categoryId || '');
+      if (selectedMerchantProduct.subCategoryId) {
+        formData.append('subCategoryId', selectedMerchantProduct.subCategoryId?._id || selectedMerchantProduct.subCategoryId || '');
+      }
+      formData.append('gender', JSON.stringify(Array.isArray(selectedMerchantProduct.gender) ? selectedMerchantProduct.gender : [selectedMerchantProduct.gender || 'MEN']));
+      formData.append('isTriable', String(selectedMerchantProduct.isTriable !== undefined ? selectedMerchantProduct.isTriable : true));
+      formData.append('tags', JSON.stringify(selectedMerchantProduct.tags || []));
+
+      const rawAttrs = Array.isArray(selectedMerchantProduct.attributes) ? selectedMerchantProduct.attributes : [];
+      const cleanAttrs = rawAttrs.map((a: any) => {
+        let rawId = a.attributeId || a.attribute;
+        if (rawId && typeof rawId === 'object') {
+          rawId = rawId._id || rawId.id;
+        }
+        return {
+          attributeId: String(rawId || ''),
+          value: a.value
+        };
+      }).filter((a: any) => a.attributeId);
+      formData.append('attributes', JSON.stringify(cleanAttrs));
+
+      const sizesPayload = (selectedMerchantProduct.sizes && selectedMerchantProduct.sizes.length > 0)
+        ? selectedMerchantProduct.sizes.map((s: any) => ({
+            size: s.size,
+            stock: Number(linkStockMap[s.size] || 0)
+          }))
+        : [{ size: 'FREE', stock: Number(linkStockMap['FREE'] || 0) }];
+
+      const existingImages = (selectedMerchantProduct.images || [])
+        .map((img: any) => ({
+          url: typeof img === 'string' ? img : img.url || '',
+          public_id: img.public_id || ''
+        }))
+        .filter((img: any) => img.url);
+
+      const variantsPayload = [{
+        color: selectedMerchantProduct.color || { name: 'Default', hex: '#cccccc' },
+        mrp: selectedMerchantProduct.mrp || 0,
+        price: selectedMerchantProduct.price || 0,
+        discount: selectedMerchantProduct.discount || 0,
+        sizes: sizesPayload,
+        productSku: `WH-${selectedMerchantProduct.productCode || Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+        existingImages
+      }];
+
+      formData.append('variants', JSON.stringify(variantsPayload));
+
+      await addMyWarehouseProductFull(formData);
+      alert('Product successfully linked and added to warehouse inventory!');
+      setIsLinkModalOpen(false);
+      setSelectedMerchantProduct(null);
+      setLinkMerchantId('');
+      setLinkStockMap({});
       loadData();
-    } catch (err) {
-      alert('Failed to add warehouse product');
+    } catch (err: any) {
+      console.error('Failed to link warehouse product:', err);
+      alert('Failed to link product: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmittingLink(false);
     }
   };
 
@@ -162,15 +252,22 @@ const WarehouseInventory: React.FC = () => {
           </h1>
           <p style={{ color: "var(--color-text-secondary)" }}>Allocate and manage products stored in this warehouse</p>
         </div>
-        <button
-          onClick={() => {
-            navigate('/merchant/add-product');
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors"
-        >
-          <Plus size={18} />
-          Add Product to Warehouse
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsLinkModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors shadow-sm"
+          >
+            <LinkIcon size={18} />
+            Link Existing Merchant Product
+          </button>
+          <button
+            onClick={() => navigate('/merchant/add-product')}
+            className="bg-slate-800 hover:bg-slate-700 text-gray-200 border border-white/10 px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-colors text-sm"
+          >
+            <Plus size={16} />
+            Create From Scratch
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -222,33 +319,41 @@ const WarehouseInventory: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <div className="space-y-2">
-                        {prod.variants.map((v) => (
-                          <div key={v._id} className="flex items-center gap-3 bg-slate-50/50 p-2 rounded-lg border" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
-                            {v.images?.[0]?.url ? (
-                              <img src={v.images[0].url} alt={v.color?.name || 'Variant'} className="w-8 h-8 rounded object-cover border border-white/10 flex-shrink-0" />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: v.color?.hex || '#ccc' }} />
-                            )}
-                            <div className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
-                              <span className="font-medium">{v.color?.name || 'Default'}</span>
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {v.sizes.map((s) => (
-                                  <button
-                                    key={s.size}
-                                    onClick={() => {
-                                      setSelectedProduct(prod);
-                                      setStockForm({ variantId: v._id, size: s.size, stock: s.stock });
-                                      setIsStockModalOpen(true);
-                                    }}
-                                    className="px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded border border-blue-500/20 text-[10px] hover:bg-blue-500/20 transition-colors"
-                                  >
-                                    {s.size}: {s.stock}
-                                  </button>
-                                ))}
+                        {prod.variants && prod.variants.length > 0 ? (
+                          prod.variants.map((v) => (
+                            <div key={v._id} className="flex items-center gap-3 bg-slate-50/50 p-2 rounded-lg border" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.1)' }}>
+                              {v.images?.[0]?.url ? (
+                                <img src={v.images[0].url} alt={v.color?.name || 'Variant'} className="w-8 h-8 rounded object-cover border border-white/10 flex-shrink-0" />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: v.color?.hex || '#ccc' }} />
+                              )}
+                              <div className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
+                                <span className="font-medium">{v.color?.name || 'Default'}</span>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {v.sizes && v.sizes.length > 0 ? (
+                                    v.sizes.map((s) => (
+                                      <button
+                                        key={s.size}
+                                        onClick={() => {
+                                          setSelectedProduct(prod);
+                                          setStockForm({ variantId: v._id, size: s.size, stock: s.stock });
+                                          setIsStockModalOpen(true);
+                                        }}
+                                        className="px-1.5 py-0.5 bg-blue-500/10 text-blue-500 rounded border border-blue-500/20 text-[10px] hover:bg-blue-500/20 transition-colors"
+                                      >
+                                        {s.size}: {s.stock}
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">No sizes</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        ) : (
+                          <span className="text-xs text-amber-500/80 italic">No variants added</span>
+                        )}
                       </div>
                     </td>
                     <td className="p-4 text-right">
@@ -263,20 +368,12 @@ const WarehouseInventory: React.FC = () => {
                         <button
                           onClick={() => {
                             setSelectedProduct(prod);
-                            setVariantForm({
-                              colorName: '',
-                              colorHex: '#000000',
-                              sizeStr: 'M',
-                              stockNum: 10,
-                              mrp: '',
-                              price: '',
-                              discount: 0,
-                            });
                             setIsVariantModalOpen(true);
                           }}
-                          className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold"
+                          className="p-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-500 rounded transition-colors"
+                          title="Add Variant"
                         >
-                          Add Variant
+                          <Plus size={14} />
                         </button>
                         <button
                           onClick={() => handleDeleteProduct(prod._id)}
@@ -295,122 +392,265 @@ const WarehouseInventory: React.FC = () => {
         )}
       </div>
 
-      {/* Add Product Modal */}
-      {isProductModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-slate-900 rounded-2xl max-w-lg w-full p-6 space-y-4 border border-white/10" style={{ background: 'var(--color-card)' }}>
+      {/* Link Existing Merchant Product Modal */}
+      {isLinkModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-slate-900 rounded-2xl max-w-2xl w-full p-6 space-y-5 border border-white/10 my-8 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--color-card)' }}>
             <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              <h2 className="text-xl font-bold" style={{ color: "var(--color-text-primary)" }}>Add Product to Warehouse</h2>
-              <button onClick={() => setIsProductModalOpen(false)} className="text-gray-400 hover:text-white">
+              <div>
+                <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: "var(--color-text-primary)" }}>
+                  <LinkIcon className="text-blue-500" size={22} /> Link Existing Merchant Product
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Allocate inventory to your warehouse from products already created by merchants.
+                </p>
+              </div>
+              <button onClick={() => setIsLinkModalOpen(false)} className="text-gray-400 hover:text-white transition-colors">
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleProductSubmit} className="space-y-4">
+            <form onSubmit={handleLinkProductSubmit} className="space-y-4">
+              {/* Step 1: Select Source Merchant */}
               <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Product Name</label>
-                <input
-                  type="text"
-                  required
-                  value={productForm.name}
-                  onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-                  placeholder="e.g. Air Max Sneakers"
-                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Description</label>
-                <textarea
-                  value={productForm.description}
-                  onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
-                  placeholder="Details..."
-                  rows={2}
-                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1">Category</label>
-                  <select
-                    value={productForm.categoryId}
-                    onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
-                    className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                  >
-                    {categories.map((c) => (
-                      <option key={c._id} value={c._id} className="bg-slate-900">{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1">Brand</label>
-                  <select
-                    value={productForm.brandId}
-                    onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
-                    className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                  >
-                    {brands.map((b) => (
-                      <option key={b._id} value={b._id} className="bg-slate-900">{b.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-300 mb-1">Source Merchant (Consignment Owner)</label>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5 uppercase tracking-wider">
+                  1. Source Merchant (Consignment Owner) <span className="text-red-400">*</span>
+                </label>
                 <select
                   required
-                  value={productForm.merchantId}
-                  onChange={(e) => setProductForm({ ...productForm, merchantId: e.target.value })}
-                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
+                  value={linkMerchantId}
+                  onChange={(e) => {
+                    setLinkMerchantId(e.target.value);
+                    setProductSearchTerm('');
+                  }}
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm focus:outline-none text-white"
                 >
-                  <option value="" className="bg-slate-900">-- Select Merchant --</option>
+                  <option value="" className="bg-slate-900">-- Select Source Merchant --</option>
                   {merchants.map((m) => (
-                    <option key={m._id} value={m._id} className="bg-slate-900">{m.shopName}</option>
+                    <option key={m._id} value={m._id} className="bg-slate-900">
+                      {m.shopName} {m.warehouseStatus === 'approved' ? '✓ (Approved)' : ''}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1">Gender Group</label>
-                  <select
-                    value={productForm.gender}
-                    onChange={(e) => setProductForm({ ...productForm, gender: e.target.value })}
-                    className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                  >
-                    <option value="Men" className="bg-slate-900">Men</option>
-                    <option value="Women" className="bg-slate-900">Women</option>
-                    <option value="Kids" className="bg-slate-900">Kids</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1">Warehouse Commission (%)</label>
-                  <input
-                    type="number"
-                    value={productForm.commissionRate}
-                    onChange={(e) => setProductForm({ ...productForm, commissionRate: e.target.value })}
-                    placeholder="Leave empty for default"
-                    className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none text-white"
-                  />
-                </div>
-              </div>
+              {/* Step 2: Choose Product from Merchant */}
+              {linkMerchantId && (
+                <div className="space-y-3 pt-2 border-t border-white/5">
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider">
+                    2. Select Product from Merchant's Catalog <span className="text-red-400">*</span>
+                  </label>
 
-              <div className="pt-4 flex justify-end gap-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                  {loadingMerchantProducts ? (
+                    <div className="flex items-center justify-center py-8 gap-2 text-sm text-gray-400">
+                      <Loader2 className="animate-spin text-blue-500" size={18} />
+                      Loading merchant products...
+                    </div>
+                  ) : merchantProducts.length === 0 ? (
+                    <div className="text-center py-6 bg-black/10 rounded-xl border border-white/5 space-y-2">
+                      <AlertCircle className="mx-auto text-amber-400" size={24} />
+                      <p className="text-xs text-gray-300">This merchant has not added any products to their shop yet.</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/merchant/add-product')}
+                        className="text-xs text-blue-400 hover:underline"
+                      >
+                        Create a product from scratch &rarr;
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Search Bar */}
+                      <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search product by name or SKU..."
+                          value={productSearchTerm}
+                          onChange={(e) => setProductSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-white/10 bg-black/20 text-white placeholder-gray-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Selected Product Banner */}
+                      {selectedMerchantProduct ? (
+                        <div className="p-3 rounded-xl border border-blue-500/30 bg-blue-500/10 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {selectedMerchantProduct.images?.[0]?.url || (typeof selectedMerchantProduct.images?.[0] === 'string' ? selectedMerchantProduct.images?.[0] : null) ? (
+                              <img
+                                src={selectedMerchantProduct.images[0]?.url || selectedMerchantProduct.images[0]}
+                                alt={selectedMerchantProduct.name}
+                                className="w-12 h-12 rounded-lg object-cover border border-white/10"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-black/20 flex items-center justify-center text-gray-400 border border-white/10">
+                                <ImageIcon size={20} />
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-xs text-blue-400 font-semibold flex items-center gap-1">
+                                <Check size={14} /> Linked Product
+                              </div>
+                              <div className="font-bold text-sm text-white">{selectedMerchantProduct.name}</div>
+                              <div className="text-xs text-gray-300">
+                                Price: ₹{selectedMerchantProduct.price || selectedMerchantProduct.mrp} • Color: {selectedMerchantProduct.color?.name || 'Default'}
+                              </div>
+                              {selectedMerchantProduct.attributes && selectedMerchantProduct.attributes.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {selectedMerchantProduct.attributes.map((a: any, aIdx: number) => (
+                                    <span key={aIdx} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                      {Array.isArray(a.value) ? a.value.join(', ') : String(a.value || '')}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMerchantProduct(null)}
+                            className="text-xs px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-gray-200 transition-colors"
+                          >
+                            Change
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="max-h-56 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                          {merchantProducts
+                            .filter((p) =>
+                              !productSearchTerm ||
+                              p.name?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+                              p.productCode?.toLowerCase().includes(productSearchTerm.toLowerCase())
+                            )
+                            .map((p) => {
+                              const imgSrc = p.images?.[0]?.url || (typeof p.images?.[0] === 'string' ? p.images[0] : null);
+                              return (
+                                <div
+                                  key={p.id || p.styleGroupId || p._id}
+                                  onClick={() => handleSelectLinkProduct(p)}
+                                  className="p-2.5 rounded-lg border border-white/5 bg-black/10 hover:bg-white/5 hover:border-blue-500/30 cursor-pointer flex items-center justify-between transition-all"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    {imgSrc ? (
+                                      <img src={imgSrc} alt={p.name} className="w-10 h-10 rounded-lg object-cover border border-white/10" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-lg bg-black/30 flex items-center justify-center text-gray-500">
+                                        <ImageIcon size={18} />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <div className="text-xs font-semibold text-white">{p.name}</div>
+                                      <div className="text-[11px] text-gray-400">
+                                        {p.category || p.categoryId?.name || 'Category'} • ₹{p.price || p.mrp || 0}
+                                        {p.color?.name && ` • ${p.color.name}`}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelectLinkProduct(p);
+                                    }}
+                                    className="px-2.5 py-1 text-xs rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 font-medium"
+                                  >
+                                    Select
+                                  </button>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Step 3: Warehouse Stock & Commission */}
+              {selectedMerchantProduct && (
+                <div className="space-y-4 pt-3 border-t border-white/5">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-2 uppercase tracking-wider">
+                      3. Received Warehouse Stock per Size <span className="text-red-400">*</span>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {(selectedMerchantProduct.sizes && selectedMerchantProduct.sizes.length > 0 ? selectedMerchantProduct.sizes : [{ size: 'FREE' }]).map((s: any) => (
+                        <div key={s.size} className="bg-black/20 p-2.5 rounded-lg border border-white/10 flex items-center justify-between">
+                          <span className="text-xs font-bold text-white uppercase">{s.size}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-gray-400">Stock:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={linkStockMap[s.size] ?? 0}
+                              onChange={(e) =>
+                                setLinkStockMap({
+                                  ...linkStockMap,
+                                  [s.size]: parseInt(e.target.value) || 0
+                                })
+                              }
+                              className="w-16 px-2 py-1 text-xs text-right font-mono rounded bg-black/40 border border-white/20 text-white focus:outline-none focus:border-blue-400"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-300 mb-1">
+                        Warehouse Commission Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        placeholder="e.g. 10 (optional)"
+                        value={linkCommissionRate}
+                        onChange={(e) => setLinkCommissionRate(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-black/20 text-white focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex items-end text-xs text-gray-400 pb-1">
+                      Images and color ({selectedMerchantProduct.color?.name || 'Default'}) will be preserved from the merchant product.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 flex items-center justify-between border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
                 <button
                   type="button"
-                  onClick={() => setIsProductModalOpen(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 text-sm"
+                  onClick={() => {
+                    setIsLinkModalOpen(false);
+                    navigate('/merchant/add-product');
+                  }}
+                  className="text-xs text-blue-400 hover:underline"
                 >
-                  Cancel
+                  Need full customization? Open Add Product Page &rarr;
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
-                >
-                  Save Product
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsLinkModalOpen(false)}
+                    className="px-4 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!selectedMerchantProduct || submittingLink}
+                    className={`px-5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      !selectedMerchantProduct || submittingLink
+                        ? 'bg-blue-600/50 text-white/50 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    {submittingLink ? <Loader2 size={14} className="animate-spin" /> : <LinkIcon size={14} />}
+                    {submittingLink ? 'Adding to Warehouse...' : 'Add to Warehouse Inventory'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

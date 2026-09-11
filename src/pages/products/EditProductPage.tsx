@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Trash2, Upload, X, Save, ArrowLeft, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Upload, X, Save, ArrowLeft, ChevronDown, Loader2, Plus } from "lucide-react";
 import { getBaseProductById, editProduct, getAttributes, uploadImage, deleteImage } from "../../api/products";
 import { updateMyWarehouseProduct } from "../../api/warehouseOrder";
 import { calcDiscount, calcPriceFromDiscount } from "../../utils/price";
@@ -9,6 +9,7 @@ import { POPULAR_COLORS } from "../../utils/colors";
 import CropperModal from "../../components/utils/CropperModal";
 import { ProductTitleInput } from "../../components/Products/ProductTitleInput";
 import CustomColorDropdown from "../../components/utils/CustomColorDropdown";
+import MatchingProductsModal from "../../components/Products/MatchingProductsModal";
 import { useAuth } from "../../context/AuthContext";
 import '../../components/Products/AddNewProduct.css';
 
@@ -16,6 +17,11 @@ import '../../components/Products/AddNewProduct.css';
 interface Color {
     name: string;
     hex: string;
+}
+interface Size {
+    size: string;
+    stock: number;
+    _id?: string;
 }
 interface Image {
     public_id: string;
@@ -41,12 +47,15 @@ interface Product {
     collectionIds?: string[];
     color?: Color;
     size?: string;
+    sizes?: Size[];
     stock: number;
     mrp: number;
     price: number;
     discount: number;
     images?: Image[];
     productCode?: string;
+    styleGroupId?: string;
+    matchingProducts?: string[];
 }
 
 interface DynamicAttribute {
@@ -89,6 +98,10 @@ export default function EditProductPage() {
     const [imageFilesToCrop, setImageFilesToCrop] = useState<File[]>([]);
     const [showCropper, setShowCropper] = useState(false);
 
+    // Matching Products State
+    const [showMatchingModal, setShowMatchingModal] = useState(false);
+    const [matchingProducts, setMatchingProducts] = useState<string[]>([]);
+
     /* -------- LOAD PRODUCT -------- */
     useEffect(() => {
         if (!id) return;
@@ -114,6 +127,7 @@ export default function EditProductPage() {
                 setPrice(data.price ?? 0);
                 setDiscount(data.discount ?? 0);
                 setImages(data.images || []);
+                setMatchingProducts(data.matchingProducts || []);
             } catch (error) {
                 console.error(error);
                 alert("Failed to load product.");
@@ -398,6 +412,20 @@ export default function EditProductPage() {
                                 <button type="button" onClick={addTag} className="secondary-btn">Add</button>
                             </div>
                         </div>
+
+                        <div className="form-group" style={{ marginTop: "16px", padding: "16px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", background: "var(--color-bg)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div>
+                                    <h4 style={{ fontWeight: 600, fontSize: "14px" }}>Matching Products</h4>
+                                    <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
+                                        {matchingProducts.length} product(s) linked
+                                    </p>
+                                </div>
+                                <button type="button" onClick={() => setShowMatchingModal(true)} className="secondary-btn" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <Plus size={16} /> Set Matching Products
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -499,6 +527,17 @@ export default function EditProductPage() {
                         setImageFilesToCrop([]);
                     }}
                     onCropComplete={handleCropComplete}
+                />
+            )}
+
+            {/* Matching Products Modal */}
+            {showMatchingModal && id && product?.styleGroupId && (
+                <MatchingProductsModal
+                    productId={id}
+                    currentProductStyleGroupId={product.styleGroupId}
+                    initialMatchingProducts={matchingProducts}
+                    onClose={() => setShowMatchingModal(false)}
+                    onSaveSuccess={(selectedIds) => setMatchingProducts(selectedIds)}
                 />
             )}
         </div>

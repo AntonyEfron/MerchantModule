@@ -1,17 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Clock,
   Package,
   Truck,
-  CheckCircle,
-  AlertCircle,
-  Phone,
   ChevronDown,
   ChevronUp,
   Loader2,
-  Upload,
-  X,
-  Trash2
+  Upload
 } from "lucide-react";
 import { 
   fetchAllWarehouseOrders,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search, Save, ArrowLeft, Plus, Minus, Check, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fetchProductsByMerchantId, updateSingleSizeStock } from "../../api/products";
@@ -41,8 +41,8 @@ interface Product {
 
 export default function StockQuickUpdate() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const merchantId = localStorage.getItem("merchant_id") || user?.id || "";
+  const { merchant } = useAuth();
+  const merchantId = localStorage.getItem("merchant_id") || merchant?.id || "";
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

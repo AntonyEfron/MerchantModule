@@ -6,6 +6,7 @@ import "./DynamicSizesInput.css";
 export interface Size {
   size: string;
   stock: number;
+  merchantSizeCode?: string;
 }
 
 interface DynamicSizesInputProps {
@@ -15,7 +16,7 @@ interface DynamicSizesInputProps {
 
 const DynamicSizesInput: React.FC<DynamicSizesInputProps> = ({ sizes, setSizes }) => {
   const addSize = () => {
-    setSizes([...sizes, { size: "", stock: 0 }]);
+    setSizes([...sizes, { size: "", stock: 0, merchantSizeCode: "" }]);
   };
 
   const removeSize = (index: number) => {
@@ -49,6 +50,13 @@ const DynamicSizesInput: React.FC<DynamicSizesInputProps> = ({ sizes, setSizes }
               placeholder="Stock"
               min={0}
               className="stock-input"
+            />
+            <input
+              type="text"
+              value={sizeData.merchantSizeCode || ""}
+              onChange={(e) => updateSize(index, "merchantSizeCode", e.target.value)}
+              placeholder="Code/SKU (Opt)"
+              className="size-input"
             />
             {sizes.length > 1 && (
               <button

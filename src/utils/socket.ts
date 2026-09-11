@@ -64,29 +64,26 @@ export const connectSocket = (merchantId: string, options?: Omit<ConnectSocketOp
   socket.removeAllListeners("newWarehouseOrder");
   socket.removeAllListeners("warehouseOrderUpdate");
 
-  if (isWarehouse) {
-    // Warehouse-specific socket events
-    socket.on("newWarehouseOrder", (orderData: Order) => {
-      console.log("📩 Received new warehouse order:", orderData);
-      emitter.emit("newWarehouseOrder", orderData);
-    });
+  // Handle incoming order updates
+  const handleOrderUpdate = (data: any) => {
+    const order = data?.order || data;
+    console.log("📦 Order update received:", order);
+    emitter.emit("orderUpdate", order);
+    emitter.emit("warehouseOrderUpdate", order);
+  };
 
-    socket.on("warehouseOrderUpdate", (order: Order) => {
-      console.log("📦 Warehouse order update received:", order);
-      emitter.emit("warehouseOrderUpdate", order);
-    });
-  } else {
-    // Merchant-specific socket events
-    socket.on("orderUpdate", (order: Order) => {
-      console.log("📦 Order update received:", order);
-      emitter.emit("orderUpdate", order);
-    });
+  // Handle incoming new orders
+  const handleNewOrder = (data: any) => {
+    const orderData = data?.order || data;
+    console.log("📩 Received new order:", orderData);
+    emitter.emit("newOrder", orderData);
+    emitter.emit("newWarehouseOrder", orderData);
+  };
 
-    socket.on("newOrder", (orderData: Order) => {
-      console.log("📩 Received new order:", orderData);
-      emitter.emit("newOrder", orderData);
-    });
-  }
+  socket.on("orderUpdate", handleOrderUpdate);
+  socket.on("warehouseOrderUpdate", handleOrderUpdate);
+  socket.on("newOrder", handleNewOrder);
+  socket.on("newWarehouseOrder", handleNewOrder);
 
   return socket;
 };

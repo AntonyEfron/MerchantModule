@@ -11,7 +11,7 @@ interface SizeStock {
 interface Variant {
   _id: string;
   color: { name: string; hex: string };
-  sizes: SizeStock[];
+  sizes?: SizeStock[];
   mrp: number;
   price: number;
   discount: number;
@@ -30,7 +30,7 @@ interface ConsignedProduct {
   };
   categoryId?: { name: string };
   brandId?: { name: string };
-  variants: Variant[];
+  variants?: Variant[];
   createdAt: string;
 }
 
@@ -81,8 +81,8 @@ const MerchantWarehouseStock: React.FC = () => {
   // Calculate totals
   const totalProducts = products.length;
   const totalStockUnits = products.reduce((acc, prod) => {
-    return acc + prod.variants.reduce((vAcc, v) => {
-      return vAcc + v.sizes.reduce((sAcc, s) => sAcc + (s.stock || 0), 0);
+    return acc + (prod.variants || []).reduce((vAcc, v) => {
+      return vAcc + (v.sizes || []).reduce((sAcc, s) => sAcc + (s.stock || 0), 0);
     }, 0);
   }, 0);
 
@@ -100,6 +100,11 @@ const MerchantWarehouseStock: React.FC = () => {
   if (warehouseStatus === 'none' || warehouseStatus === 'rejected') {
     return (
       <div className="p-6 max-w-5xl mx-auto space-y-8" style={{ color: 'var(--color-text-primary)' }}>
+        {error && (
+          <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-xs">
+            {error}
+          </div>
+        )}
         {/* Banner Card */}
         <div className="relative overflow-hidden rounded-3xl p-8 border border-white/10" style={{ background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(3, 105, 161, 0.2) 100%)' }}>
           <div className="max-w-2xl space-y-4">
@@ -286,53 +291,57 @@ const MerchantWarehouseStock: React.FC = () => {
               {/* Variants Section */}
               <div className="space-y-3">
                 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers size={14} /> Available Color Variants ({product.variants.length})
+                  <Layers size={14} /> Available Color Variants ({(product.variants || []).length})
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {product.variants.map((v) => {
-                    const totalVariantStock = v.sizes.reduce((sum, s) => sum + (s.stock || 0), 0);
-                    return (
-                      <div
-                        key={v._id}
-                        className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-2 text-sm"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-3.5 h-3.5 rounded-full border border-white/20"
-                              style={{ backgroundColor: v.color?.hex || '#ccc' }}
-                            />
-                            <span className="font-semibold text-white">{v.color?.name || 'Default Color'}</span>
-                          </div>
-                          <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">
-                            {totalVariantStock} units in stock
-                          </span>
-                        </div>
-
-                        <div className="flex justify-between items-center text-xs text-gray-400">
-                          <span>Price: <strong className="text-white">₹{v.price}</strong> <span className="line-through text-gray-500">₹{v.mrp}</span></span>
-                          {v.discount > 0 && <span className="text-amber-400 font-semibold">{v.discount}% OFF</span>}
-                        </div>
-
-                        {/* Size Breakdown */}
-                        <div className="pt-2 border-t border-white/5 flex flex-wrap gap-1.5">
-                          {v.sizes.map((s) => (
-                            <span
-                              key={s.size}
-                              className={`px-2 py-0.5 rounded text-xs font-mono border ${
-                                s.stock > 0
-                                  ? 'bg-slate-800 text-gray-200 border-white/10'
-                                  : 'bg-red-500/10 text-red-400 border-red-500/20'
-                              }`}
-                            >
-                              {s.size}: <strong>{s.stock}</strong>
+                  {(product.variants || []).length === 0 ? (
+                    <p className="text-xs text-gray-400 italic">No variants available</p>
+                  ) : (
+                    (product.variants || []).map((v) => {
+                      const totalVariantStock = (v.sizes || []).reduce((sum, s) => sum + (s.stock || 0), 0);
+                      return (
+                        <div
+                          key={v._id}
+                          className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-2 text-sm"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-3.5 h-3.5 rounded-full border border-white/20"
+                                style={{ backgroundColor: v.color?.hex || '#ccc' }}
+                              />
+                              <span className="font-semibold text-white">{v.color?.name || 'Default Color'}</span>
+                            </div>
+                            <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">
+                              {totalVariantStock} units in stock
                             </span>
-                          ))}
+                          </div>
+
+                          <div className="flex justify-between items-center text-xs text-gray-400">
+                            <span>Price: <strong className="text-white">₹{v.price}</strong> <span className="line-through text-gray-500">₹{v.mrp}</span></span>
+                            {v.discount > 0 && <span className="text-amber-400 font-semibold">{v.discount}% OFF</span>}
+                          </div>
+
+                          {/* Size Breakdown */}
+                          <div className="pt-2 border-t border-white/5 flex flex-wrap gap-1.5">
+                            {(v.sizes || []).map((s) => (
+                              <span
+                                key={s.size}
+                                className={`px-2 py-0.5 rounded text-xs font-mono border ${
+                                  s.stock > 0
+                                    ? 'bg-slate-800 text-gray-200 border-white/10'
+                                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                                }`}
+                              >
+                                {s.size}: <strong>{s.stock}</strong>
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>

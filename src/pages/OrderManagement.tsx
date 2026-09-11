@@ -94,25 +94,39 @@ const OrderManagement: React.FC = () => {
 
   // Socket
   useEffect(() => {
-    const handleOrderUpdate = (updatedOrder: Partial<Order> & { _id: string }) => {
+    const handleOrderUpdate = (updatedOrder: any) => {
+      if (!updatedOrder) return;
+      const orderId = updatedOrder._id || updatedOrder.orderId || updatedOrder.id;
+      if (!orderId) return;
+
+      const normalizedOrder = {
+        ...updatedOrder,
+        _id: String(orderId),
+      };
+
       setOrders((prev) => {
-        const exists = prev.some((order) => order._id === updatedOrder._id);
+        const exists = prev.some((order) => order?._id === normalizedOrder._id);
         if (exists) {
           return prev.map((order) =>
-            order._id === updatedOrder._id ? { ...order, ...updatedOrder } : order
+            order?._id === normalizedOrder._id ? { ...order, ...normalizedOrder } : order
           );
         } else {
-          if ((updatedOrder.orderStatus as string) === "pending") return prev;
+          if ((normalizedOrder.orderStatus as string) === "pending") return prev;
+          if (!normalizedOrder.orderStatus && !normalizedOrder.items) return prev;
           const mappedNewOrder: Order = {
-            ...updatedOrder,
-            acceptedAt: updatedOrder.orderStatus === "accepted" ? Date.now() : null,
+            ...normalizedOrder,
+            acceptedAt: normalizedOrder.orderStatus === "accepted" ? Date.now() : null,
           } as Order;
           return [mappedNewOrder, ...prev];
         }
       });
     };
     emitter.on("orderUpdate", handleOrderUpdate);
-    return () => emitter.off("orderUpdate", handleOrderUpdate);
+    emitter.on("warehouseOrderUpdate", handleOrderUpdate);
+    return () => {
+      emitter.off("orderUpdate", handleOrderUpdate);
+      emitter.off("warehouseOrderUpdate", handleOrderUpdate);
+    };
   }, []);
 
   const toggleExpand = (orderId: string) => {
@@ -124,16 +138,19 @@ const OrderManagement: React.FC = () => {
     const loadOrders = async () => {
       try {
         setLoading(true);
-        const data: Order[] = await getAllOrders();
-        const mapped = data.map((order) => ({
-          ...order,
-          acceptedAt: order.orderStatus === "accepted" ? new Date(order.updatedAt).getTime() : null,
-        }));
-        setOrders(mapped);
+        const rawData = await getAllOrders();
+        const data: Order[] = (Array.isArray(rawData) ? rawData : [])
+          .filter((o: any) => o && (o._id || o.orderId || o.id))
+          .map((order: any) => ({
+            ...order,
+            _id: String(order._id || order.orderId || order.id),
+            acceptedAt: order.orderStatus === "accepted" ? new Date(order.updatedAt || Date.now()).getTime() : null,
+          }));
+        setOrders(data);
 
         const initialTimers: Record<string, number> = {};
-        mapped.forEach((order) => {
-          if (order.orderStatus === "accepted" && order.acceptedAt) {
+        data.forEach((order) => {
+          if (order.orderStatus === "accepted" && order.acceptedAt && order._id) {
             const elapsed = Date.now() - order.acceptedAt;
             initialTimers[order._id] = Math.max(0, TIMER_DURATION - elapsed);
           }
@@ -192,7 +209,7 @@ const OrderManagement: React.FC = () => {
       };
       
       fetchPhotos();
-      intervalId = setInterval(fetchPhotos, 2000);
+      intervalId = setInterval(fetchPhotos, 4000);
     }
     
     return () => {
@@ -347,6 +364,7 @@ const OrderManagement: React.FC = () => {
   const [rejectReason, setRejectReason] = useState<string>("");
 
   const filteredOrders = orders.filter((order) => {
+    if (!order || !order._id) return false;
     const isCompleted = ["cancelled", "completed", "rejected"].includes(order.orderStatus);
     return activeTab === "active" ? !isCompleted : isCompleted;
   });
@@ -419,17 +437,17 @@ const OrderManagement: React.FC = () => {
             <p>{activeTab === 'active' ? 'Orders will appear here when customers place them.' : 'Completed, cancelled, and rejected orders will appear here.'}</p>
           </div>
         ) : filteredOrders.map((order) => (
-          <div key={order._id} className="card animate-fadeIn">
+          <div key={order._id || Math.random()} className="card animate-fadeIn">
             {/* Card Header */}
-            <div className="card-body" style={{ paddingBottom: expandedOrders[order._id] ? 0 : undefined }}>
+            <div className="card-body" style={{ paddingBottom: order._id && expandedOrders[order._id] ? 0 : undefined }}>
               <div className="flex justify-between items-start flex-wrap" style={{ gap: "var(--space-3)", marginBottom: "var(--space-3)" }}>
                 {/* Left: Order Info */}
                 <div>
                   <h4 style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>
-                    Order #{order._id.slice(-6)}
+                    Order #{order?._id ? String(order._id).slice(-6).toUpperCase() : '------'}
                   </h4>
                   <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-tertiary)", marginTop: "2px" }}>
-                    {new Date(order.createdAt).toLocaleString()}
+                    {order.createdAt ? new Date(order.createdAt).toLocaleString() : ''}
                   </p>
                 </div>
 
@@ -868,7 +886,7 @@ const OrderManagement: React.FC = () => {
                     <Package size={18} /> Pack Verification
                   </h3>
                   <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
-                    Order #{packingOrder._id.slice(-6)} · Provide at least 1 proof photo per item
+                    Order #{packingOrder?._id ? String(packingOrder._id).slice(-6).toUpperCase() : '------'} · Provide at least 1 proof photo per item
                   </p>
                 </div>
                 <button 

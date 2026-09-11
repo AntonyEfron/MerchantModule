@@ -55,16 +55,18 @@ const ProfilePage: React.FC = () => {
     // KYC Status (Read Only mostly)
     kyc: {
       isKycVerified: false,
-      pan: { number: "", verified: false },
-      gst: { number: "", verified: false },
+      pan: { number: "", verified: false, image: null as any },
+      gst: { number: "", verified: false, image: null as any },
+      businessProof: { proofType: "", verified: false, image: null as any },
+      bankProof: { verified: false, image: null as any },
     },
+    rejectionReason: "",
     isVerified: false,
     isActive: false,
   });
 
   const [kycFiles, setKycFiles] = useState({
     panImage: null as File | null,
-    gstImage: null as File | null,
     businessProofImage: null as File | null,
     bankProofImage: null as File | null,
   });
@@ -128,8 +130,16 @@ const ProfilePage: React.FC = () => {
             ifscCode: data.bankDetails?.ifscCode || "",
             bankName: data.bankDetails?.bankName || "",
             upiId: data.bankDetails?.upiId || "",
+            isBankVerified: data.bankDetails?.isBankVerified || false,
+          } as any,
+          kyc: {
+            isKycVerified: data.kyc?.isKycVerified || false,
+            pan: data.kyc?.pan || { number: "", verified: false },
+            gst: data.kyc?.gst || { number: "", verified: false },
+            businessProof: data.kyc?.businessProof || { proofType: "", verified: false },
+            bankProof: data.kyc?.bankProof || { verified: false },
           },
-          kyc: data.kyc || { isKycVerified: false },
+          rejectionReason: data.rejectionReason || "",
           isVerified: data.isVerified || false,
           isActive: data.isActive || false,
         });
@@ -170,7 +180,15 @@ const ProfilePage: React.FC = () => {
     setSavingBank(true);
     try {
       await updateMerchantBankDetails(merchantId, form.bankDetails);
-      alert("Bank details updated successfully");
+      alert("Bank details submitted successfully! Verification will be processed by our admin team.");
+      const data = await getMerchantById();
+      if (data) {
+        setForm(prev => ({
+          ...prev,
+          bankDetails: data.bankDetails || prev.bankDetails,
+          rejectionReason: data.rejectionReason || "",
+        }));
+      }
     } catch (err: any) {
       alert("Error updating bank details: " + err.message);
     } finally {
@@ -183,15 +201,25 @@ const ProfilePage: React.FC = () => {
     setSavingKyc(true);
     try {
       const formData = new FormData();
-      formData.append("panNumber", form.kyc.pan.number);
-      formData.append("gstNumber", form.kyc.gst.number);
+      if (form.kyc?.pan?.number) formData.append("panNumber", form.kyc.pan.number.trim().toUpperCase());
+      if (form.kyc?.gst?.number) formData.append("gstNumber", form.kyc.gst.number.trim().toUpperCase());
+      if (form.kyc?.businessProof?.proofType) {
+        formData.append("businessProofType", form.kyc.businessProof.proofType);
+      }
       if (kycFiles.panImage) formData.append("panImage", kycFiles.panImage);
-      if (kycFiles.gstImage) formData.append("gstImage", kycFiles.gstImage);
       if (kycFiles.businessProofImage) formData.append("businessProofImage", kycFiles.businessProofImage);
       if (kycFiles.bankProofImage) formData.append("bankProofImage", kycFiles.bankProofImage);
 
       await updateMerchantKYC(merchantId, formData);
-      alert("KYC details updated successfully");
+      alert("KYC documents submitted successfully! Verification will be processed by our admin team.");
+      const data = await getMerchantById();
+      if (data) {
+        setForm(prev => ({
+          ...prev,
+          kyc: data.kyc || prev.kyc,
+          rejectionReason: data.rejectionReason || "",
+        }));
+      }
     } catch (err: any) {
       alert("Error updating KYC details: " + err.message);
     } finally {
@@ -540,121 +568,154 @@ const ProfilePage: React.FC = () => {
         )}
 
         {activeTab === "bank" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="card card-body">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-black">Settlement Bank Account</h3>
-                  <button 
-                    onClick={handleSaveBank}
-                    disabled={savingBank}
-                    className="btn btn-primary !py-2 !px-4 !text-sm"
-                  >
-                    {savingBank ? 'Saving...' : 'Save Bank Details'}
-                  </button>
+          <div className="space-y-8">
+            {form.rejectionReason && (
+              <div className="p-5 rounded-2xl bg-red-50 border border-red-200 text-red-900 text-left">
+                <div className="flex items-center gap-2 font-bold text-sm text-red-800 mb-1">
+                  <span>❌</span>
+                  <span>Compliance Issues Flagged by Admin:</span>
                 </div>
-                <div className="grid grid-cols-1 gap-5">
-                  <div>
-                    <label className="input-label">Account Holder Name</label>
-                    <input type="text" name="accountHolderName" value={form.bankDetails.accountHolderName} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" />
+                <p className="whitespace-pre-line text-xs font-semibold text-red-700">{form.rejectionReason}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="card card-body">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-black">Settlement Bank Account</h3>
+                    <button 
+                      onClick={handleSaveBank}
+                      disabled={savingBank}
+                      className="btn btn-primary !py-2 !px-4 !text-sm"
+                    >
+                      {savingBank ? 'Saving...' : 'Save Bank Details'}
+                    </button>
                   </div>
-                  <div>
-                    <label className="input-label">Bank Account Number</label>
-                    <input type="text" name="accountNumber" value={form.bankDetails.accountNumber} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 gap-5">
                     <div>
-                      <label className="input-label">IFSC Code</label>
-                      <input type="text" name="ifscCode" value={form.bankDetails.ifscCode} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input uppercase" />
+                      <label className="input-label">Account Holder Name</label>
+                      <input type="text" name="accountHolderName" value={form.bankDetails.accountHolderName} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" placeholder="Name as per bank records" />
                     </div>
                     <div>
-                      <label className="input-label">Bank Name</label>
-                      <input type="text" name="bankName" value={form.bankDetails.bankName} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" />
+                      <label className="input-label">Bank Account Number</label>
+                      <input type="text" name="accountNumber" value={form.bankDetails.accountNumber} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" placeholder="Account Number" />
                     </div>
-                  </div>
-                  <div>
-                    <label className="input-label">UPI ID (Optional)</label>
-                    <input type="text" name="upiId" value={form.bankDetails.upiId} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" />
+                    <div className="grid grid-cols-2 gap-5">
+                      <div>
+                        <label className="input-label">IFSC Code</label>
+                        <input type="text" name="ifscCode" value={form.bankDetails.ifscCode} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input uppercase" placeholder="e.g. HDFC0001234" />
+                      </div>
+                      <div>
+                        <label className="input-label">Bank Name</label>
+                        <input type="text" name="bankName" value={form.bankDetails.bankName} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" placeholder="e.g. HDFC Bank" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="input-label">UPI ID (Optional)</label>
+                      <input type="text" name="upiId" value={form.bankDetails.upiId} onChange={(e) => handleInputChange(e, 'bankDetails')} className="input" placeholder="username@upi" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-6">
-              <div className="card card-body">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-black">KYC & Business Identity</h3>
-                  <button 
-                    onClick={handleSaveKyc}
-                    disabled={savingKyc}
-                    className="btn btn-primary !py-2 !px-4 !text-sm"
-                  >
-                    {savingKyc ? 'Saving...' : 'Save KYC Details'}
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] text-gray-400 font-bold uppercase">PAN Card Number</label>
-                      {form.kyc.pan?.verified ? (
-                         <span className="text-success text-xs font-bold">VERIFIED</span>
-                      ) : (
-                         <span className="text-amber-500 text-xs font-bold">PENDING</span>
-                      )}
-                    </div>
-                    <input 
-                      type="text" 
-                      value={form.kyc.pan?.number} 
-                      onChange={(e) => setForm(prev => ({...prev, kyc: {...prev.kyc, pan: {...prev.kyc.pan, number: e.target.value}}}))} 
-                      className="input uppercase"
-                      disabled={form.kyc.pan?.verified}
-                    />
-                    {!form.kyc.pan?.verified && (
+              <div className="space-y-6">
+                <div className="card card-body">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-lg font-bold text-black">KYC & Business Identity</h3>
+                    <button 
+                      onClick={handleSaveKyc}
+                      disabled={savingKyc}
+                      className="btn btn-primary !py-2 !px-4 !text-sm"
+                    >
+                      {savingKyc ? 'Saving...' : 'Save KYC Details'}
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {/* PAN Card */}
+                    <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] text-gray-400 font-bold uppercase">PAN Card Number</label>
+                        {form.kyc?.pan?.verified ? (
+                           <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">VERIFIED</span>
+                        ) : (
+                           <span className="text-amber-500 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">PENDING</span>
+                        )}
+                      </div>
+                      <input 
+                        type="text" 
+                        value={form.kyc?.pan?.number || ""} 
+                        onChange={(e) => setForm(prev => ({...prev, kyc: {...prev.kyc, pan: {...prev.kyc.pan, number: e.target.value}}}))} 
+                        className="input uppercase font-mono"
+                        placeholder="ABCDE1234F"
+                      />
                       <input 
                         type="file" 
+                        accept="image/*,application/pdf"
                         onChange={(e) => setKycFiles(prev => ({...prev, panImage: e.target.files?.[0] || null}))} 
-                        className="text-xs mt-2" 
+                        className="text-xs mt-1" 
                       />
-                    )}
-                  </div>
-
-                  <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[10px] text-gray-400 font-bold uppercase">GST Number (Optional)</label>
-                      {form.kyc.gst?.verified ? (
-                         <span className="text-success text-xs font-bold">VERIFIED</span>
-                      ) : (
-                         <span className="text-amber-500 text-xs font-bold">PENDING</span>
-                      )}
                     </div>
-                    <input 
-                      type="text" 
-                      value={form.kyc.gst?.number} 
-                      onChange={(e) => setForm(prev => ({...prev, kyc: {...prev.kyc, gst: {...prev.kyc.gst, number: e.target.value}}}))} 
-                      className="input uppercase"
-                      disabled={form.kyc.gst?.verified}
-                    />
-                    {!form.kyc.gst?.verified && (
+
+                    {/* GSTIN Number */}
+                    <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
+                      <label className="text-[10px] text-gray-400 font-bold uppercase">GSTIN Number (Optional)</label>
+                      <input 
+                        type="text" 
+                        value={form.kyc?.gst?.number || ""} 
+                        onChange={(e) => setForm(prev => ({...prev, kyc: {...prev.kyc, gst: {...prev.kyc.gst, number: e.target.value}}}))} 
+                        className="input uppercase font-mono"
+                        placeholder="27ABCDE1234F1Z5"
+                      />
+                    </div>
+
+                    {/* Legal Business Proof */}
+                    <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] text-gray-400 font-bold uppercase">Legal Business Proof</label>
+                        {form.kyc?.businessProof?.verified ? (
+                           <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">VERIFIED</span>
+                        ) : (
+                           <span className="text-amber-500 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">PENDING</span>
+                        )}
+                      </div>
+                      <select
+                        value={form.kyc?.businessProof?.proofType || ""}
+                        onChange={(e) => setForm(prev => ({...prev, kyc: {...prev.kyc, businessProof: {...prev.kyc.businessProof, proofType: e.target.value}}}))}
+                        className="input text-xs"
+                      >
+                        <option value="">Select Proof Type</option>
+                        <option value="shop_license">Shop & Establishment License</option>
+                        <option value="gst_cert">GST Certificate</option>
+                        <option value="udyam">Udyam Registration (MSME)</option>
+                        <option value="rent_agreement">Rental Agreement</option>
+                      </select>
                       <input 
                         type="file" 
-                        onChange={(e) => setKycFiles(prev => ({...prev, gstImage: e.target.files?.[0] || null}))} 
-                        className="text-xs mt-2" 
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setKycFiles(prev => ({...prev, businessProofImage: e.target.files?.[0] || null}))} 
+                        className="text-xs mt-1" 
                       />
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
-                    <label className="text-[10px] text-gray-400 font-bold uppercase">Bank Proof Image (Cheque/Passbook)</label>
-                    <input 
-                      type="file" 
-                      onChange={(e) => setKycFiles(prev => ({...prev, bankProofImage: e.target.files?.[0] || null}))} 
-                      className="text-xs mt-2" 
-                    />
+                    {/* Bank Account Proof */}
+                    <div className="p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] text-gray-400 font-bold uppercase">Bank Proof (Cheque / Passbook)</label>
+                        {form.kyc?.bankProof?.verified ? (
+                           <span className="text-green-600 text-xs font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">VERIFIED</span>
+                        ) : (
+                           <span className="text-amber-500 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">PENDING</span>
+                        )}
+                      </div>
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf"
+                        onChange={(e) => setKycFiles(prev => ({...prev, bankProofImage: e.target.files?.[0] || null}))} 
+                        className="text-xs mt-1" 
+                      />
+                    </div>
                   </div>
-                </div>
-
-                <div className="mt-8 p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-center">
-                   <p className="text-xs text-gray-500">To update verified documents, please contact support.</p>
                 </div>
               </div>
             </div>

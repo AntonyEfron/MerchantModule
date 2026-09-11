@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ChevronDown, Plus, X, Loader2, Search, Upload, Save, ArrowLeft
+  ChevronDown, Plus, X, Loader2, Search, Upload, Save, ArrowLeft, Link as LinkIcon, Check, Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getCategories, createProductFull, getAttributes, searchBaseProducts, getBaseProductById } from '../../api/products';
+import { getCategories, createProductFull, getAttributes, searchBaseProducts, getBaseProductById, fetchProductsByMerchantId } from '../../api/products';
 import { addMyWarehouseProductFull } from '../../api/warehouseOrder';
 import axiosInstance from '../../utils/axiosInstance';
 import { ProductTitleInput } from '../../components/Products/ProductTitleInput';
@@ -76,6 +76,11 @@ const AddNewProduct = () => {
   const [selectedMerchantId, setSelectedMerchantId] = useState('');
   const [commissionRate, setCommissionRate] = useState('');
   const [merchants, setMerchants] = useState<any[]>([]);
+  const [merchantProducts, setMerchantProducts] = useState<any[]>([]);
+  const [loadingMerchantProducts, setLoadingMerchantProducts] = useState(false);
+  const [selectedMerchantProduct, setSelectedMerchantProduct] = useState<any | null>(null);
+  const [merchantProductSearch, setMerchantProductSearch] = useState('');
+  const [linkedMerchantProductId, setLinkedMerchantProductId] = useState<string>('');
 
   // Unified Form State
   const [name, setName] = useState('');
@@ -144,22 +149,108 @@ const AddNewProduct = () => {
     }
   }, [merchant]);
 
-  // Load Subcategory Specifications
+  // Fetch merchant products when source merchant changes (for warehouse operators)
   useEffect(() => {
-    const fetchAttributes = async () => {
-      if (!subCategoryId) {
-        setDynamicAttributes([]);
-        return;
+    if (merchant?.accountType === 'warehouse' && selectedMerchantId) {
+      setLoadingMerchantProducts(true);
+      fetchProductsByMerchantId(selectedMerchantId)
+        .then((res: any) => {
+          const list = Array.isArray(res) ? res : res?.products || [];
+          setMerchantProducts(list);
+        })
+        .catch((err) => {
+          console.error("Failed to load merchant products:", err);
+          setMerchantProducts([]);
+        })
+        .finally(() => setLoadingMerchantProducts(false));
+    } else {
+      setMerchantProducts([]);
+      setSelectedMerchantProduct(null);
+      setLinkedMerchantProductId('');
+    }
+  }, [selectedMerchantId, merchant]);
+
+  const handleSelectMerchantProduct = (prod: any) => {
+    setSelectedMerchantProduct(prod);
+    setLinkedMerchantProductId(prod.id || prod.styleGroupId || prod._id || '');
+    setName(prod.name || '');
+    setStyleName(prod.styleName || '');
+    setDescription(prod.description || '');
+    const catId = prod.categoryId?._id || prod.categoryId || '';
+    const subCatId = prod.subCategoryId?._id || prod.subCategoryId || '';
+    setCategoryId(catId);
+    setSubCategoryId(subCatId);
+    setGender(Array.isArray(prod.gender) ? prod.gender : prod.gender ? [prod.gender] : ['MEN', 'WOMEN']);
+    setTags(prod.tags || []);
+    
+    // Normalize attributes array
+    const rawAttrs = Array.isArray(prod.attributes) ? prod.attributes : [];
+    const cleanAttrs = rawAttrs.map((a: any) => {
+      let rawId = a.attributeId || a.attribute;
+      if (rawId && typeof rawId === 'object') {
+        rawId = rawId._id || rawId.id;
       }
-      try {
-        const res = await getAttributes(subCategoryId);
-        setDynamicAttributes(res.attributes || []);
-      } catch (err) {
-        console.error("Failed to fetch attributes:", err);
+      return {
+        attributeId: String(rawId || ''),
+        value: a.value
+      };
+    }).filter((a: any) => a.attributeId);
+    setAttributes(cleanAttrs);
+    setIsTriable(prod.isTriable !== undefined ? prod.isTriable : true);
+
+    setColor(prod.color || { name: 'Default', hex: '#cccccc' });
+    setMrp(prod.mrp || 0);
+    setPrice(prod.price || 0);
+    setDiscount(prod.discount || 0);
+    setProductSku(`WH-${prod.productCode || Math.random().toString(36).substring(2, 7).toUpperCase()}`);
+
+    if (prod.sizes && Array.isArray(prod.sizes) && prod.sizes.length > 0) {
+      setSizes(prod.sizes.map((s: any) => ({ size: s.size, stock: 0 })));
+    }
+
+    if (prod.images && Array.isArray(prod.images) && prod.images.length > 0) {
+      setImages(prod.images.map((img: any) => ({
+        public_id: img.public_id || '',
+        url: typeof img === 'string' ? img : img.url || ''
+      })));
+    }
+
+    // Immediately trigger fetching attributes for selected category
+    fetchCategoryAttributes(subCatId, catId);
+  };
+
+  const handleClearMerchantProductLink = () => {
+    setSelectedMerchantProduct(null);
+    setLinkedMerchantProductId('');
+  };
+
+  // Load Category / Subcategory Specifications
+  const fetchCategoryAttributes = async (targetSub?: string, targetCat?: string) => {
+    const subId = targetSub !== undefined ? targetSub : subCategoryId;
+    const catId = targetCat !== undefined ? targetCat : categoryId;
+    const primaryId = subId || catId;
+
+    if (!primaryId) {
+      setDynamicAttributes([]);
+      return;
+    }
+    try {
+      let res = await getAttributes(primaryId);
+      let attrs = res?.attributes || res?.data?.attributes || [];
+      // Fallback to parent category if subcategory has no attributes configured
+      if ((!attrs || attrs.length === 0) && catId && catId !== primaryId) {
+        const catRes = await getAttributes(catId);
+        attrs = catRes?.attributes || catRes?.data?.attributes || [];
       }
-    };
-    fetchAttributes();
-  }, [subCategoryId]);
+      setDynamicAttributes(attrs || []);
+    } catch (err) {
+      console.error("Failed to fetch attributes:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategoryAttributes(subCategoryId, categoryId);
+  }, [subCategoryId, categoryId]);
 
   // Load product if copyFrom param is present
   useEffect(() => {
@@ -221,7 +312,10 @@ const AddNewProduct = () => {
   const handleAttributeChange = (attributeId: string, value: any, isMultiselect: boolean = false) => {
     setAttributes(prev => {
       let updatedAttributes = [...prev];
-      const existingIndex = updatedAttributes.findIndex(a => a.attributeId === attributeId);
+      const existingIndex = updatedAttributes.findIndex(a => {
+        const rawId = typeof a.attributeId === 'object' ? ((a.attributeId as any)?._id || (a.attributeId as any)?.id) : (a.attributeId || (a as any).attribute);
+        return String(rawId) === String(attributeId);
+      });
       if (isMultiselect) {
         if (existingIndex >= 0) {
           let currentValues = updatedAttributes[existingIndex].value as string[];
@@ -229,15 +323,15 @@ const AddNewProduct = () => {
           if (currentValues.includes(value)) currentValues = currentValues.filter(v => v !== value);
           else currentValues.push(value);
           if (currentValues.length === 0) updatedAttributes.splice(existingIndex, 1);
-          else updatedAttributes[existingIndex] = { ...updatedAttributes[existingIndex], value: currentValues };
+          else updatedAttributes[existingIndex] = { ...updatedAttributes[existingIndex], attributeId: String(attributeId), value: currentValues };
         } else {
-          updatedAttributes.push({ attributeId, value: [value] });
+          updatedAttributes.push({ attributeId: String(attributeId), value: [value] });
         }
       } else {
         if (existingIndex >= 0) {
-          updatedAttributes[existingIndex] = { ...updatedAttributes[existingIndex], value };
+          updatedAttributes[existingIndex] = { ...updatedAttributes[existingIndex], attributeId: String(attributeId), value };
         } else {
-          updatedAttributes.push({ attributeId, value });
+          updatedAttributes.push({ attributeId: String(attributeId), value });
         }
       }
       return updatedAttributes;
@@ -400,13 +494,20 @@ const AddNewProduct = () => {
         formData.append("selectedBaseProductId", parentId);
       }
 
+      if (linkedMerchantProductId) {
+        formData.append("linkedMerchantProductId", linkedMerchantProductId);
+      }
+
       // Map single variant details to payload
+      const existingImages: { url: string; public_id: string }[] = [];
       const imageFields: string[] = [];
       images.forEach((img, j) => {
-        const fieldName = `var_0_img_${j}`;
         if (img.blob) {
+          const fieldName = `var_0_img_${j}`;
           imageFields.push(fieldName);
           formData.append(fieldName, img.blob);
+        } else if (img.url) {
+          existingImages.push({ url: img.url, public_id: img.public_id || '' });
         }
       });
 
@@ -417,7 +518,8 @@ const AddNewProduct = () => {
         discount,
         sizes,
         productSku,
-        imageFields
+        imageFields,
+        existingImages
       }];
 
       formData.append("variants", JSON.stringify(variantsPayload));
@@ -430,7 +532,11 @@ const AddNewProduct = () => {
       }
 
       alert("Product created successfully!");
-      navigate("/merchant/inventory");
+      if (merchant?.accountType === 'warehouse') {
+        navigate("/merchant/warehouse-inventory");
+      } else {
+        navigate("/merchant/inventory");
+      }
     } catch (err: any) {
       console.error(err);
       alert("Failed to create product: " + (err.message || err));
@@ -477,8 +583,164 @@ const AddNewProduct = () => {
           </div>
         </div>
 
-        {/* Autocomplete Catalog Link Bar (Only show if not doing copyFrom) */}
-        {!copyFrom && (
+        {/* Warehouse Consignment & Source Merchant Section */}
+        {merchant?.accountType === 'warehouse' && (
+          <div className="products-card" style={{ marginBottom: "var(--space-6)", border: "1.5px solid rgba(56, 189, 248, 0.3)", background: "rgba(56, 189, 248, 0.03)" }}>
+            <div className="products-header" style={{ marginBottom: "var(--space-4)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <LinkIcon size={20} style={{ color: "var(--color-primary)" }} />
+                <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700, margin: 0 }}>Warehouse Consignment & Source Merchant</h2>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+                Select the consignment owner merchant and link an existing product from their catalog to auto-populate images, variants, and specs.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ marginBottom: "16px" }}>
+              <div className="form-group">
+                <label>Source Merchant (Consignment Owner) <span className="required">*</span></label>
+                <div className="select-wrapper">
+                  <select
+                    required
+                    value={selectedMerchantId}
+                    onChange={(e) => {
+                      setSelectedMerchantId(e.target.value);
+                      setSelectedMerchantProduct(null);
+                      setLinkedMerchantProductId('');
+                    }}
+                  >
+                    <option value="">-- Select Source Merchant --</option>
+                    {merchants.map(m => (
+                      <option key={m._id} value={m._id}>
+                        {m.shopName} {m.warehouseStatus === 'approved' ? '✓ (Approved)' : m.warehouseStatus === 'pending' ? '⏳ (Pending)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="select-icon" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Warehouse Commission (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={commissionRate}
+                  onChange={(e) => setCommissionRate(e.target.value)}
+                  placeholder="Leave empty for default"
+                />
+              </div>
+            </div>
+
+            {/* Merchant Product Search & Selection */}
+            {selectedMerchantId && (
+              <div style={{ paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                <label style={{ display: "block", marginBottom: "8px", fontSize: "13px", fontWeight: 600 }}>
+                  Link Product from {merchants.find(m => m._id === selectedMerchantId)?.shopName || 'Merchant'}
+                </label>
+
+                {loadingMerchantProducts ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", gap: "8px", color: "var(--color-text-secondary)", fontSize: "13px" }}>
+                    <Loader2 className="animate-spin" size={18} />
+                    Loading merchant's product catalog...
+                  </div>
+                ) : selectedMerchantProduct ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(16, 185, 129, 0.1)", border: "1.5px solid rgba(16, 185, 129, 0.3)", padding: "14px 18px", borderRadius: "var(--radius-md)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      {selectedMerchantProduct.images?.[0]?.url || (typeof selectedMerchantProduct.images?.[0] === 'string' ? selectedMerchantProduct.images?.[0] : null) ? (
+                        <img
+                          src={selectedMerchantProduct.images[0]?.url || selectedMerchantProduct.images[0]}
+                          alt=""
+                          style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", border: "1px solid rgba(255,255,255,0.1)" }}
+                        />
+                      ) : (
+                        <div style={{ width: "48px", height: "48px", borderRadius: "8px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
+                          <ImageIcon size={20} />
+                        </div>
+                      )}
+                      <div>
+                        <div style={{ fontWeight: 700, color: "#10b981", fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Check size={16} /> Linked to: {selectedMerchantProduct.name}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+                          Price: ₹{selectedMerchantProduct.price || selectedMerchantProduct.mrp} • Color: {selectedMerchantProduct.color?.name || 'Default'} • {selectedMerchantProduct.sizes?.length || 0} size(s) pre-filled
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleClearMerchantProductLink}
+                      className="secondary-btn"
+                      style={{ padding: "6px 14px", fontSize: "12px" }}
+                    >
+                      Unlink / Change
+                    </button>
+                  </div>
+                ) : merchantProducts.length === 0 ? (
+                  <div style={{ padding: "16px", background: "rgba(0,0,0,0.1)", borderRadius: "8px", fontSize: "13px", color: "var(--color-text-secondary)", textAlign: "center" }}>
+                    No products found for this merchant. You can fill in the details below to create a new product from scratch.
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", background: "var(--color-bg)", padding: "4px 12px", marginBottom: "12px" }}>
+                      <Search size={16} style={{ color: "var(--color-text-tertiary)", marginRight: "8px" }} />
+                      <input
+                        type="text"
+                        placeholder="Search merchant's products by name or code..."
+                        value={merchantProductSearch}
+                        onChange={e => setMerchantProductSearch(e.target.value)}
+                        style={{ border: "none", outline: "none", flex: 1, padding: "8px 4px", fontSize: "13px" }}
+                      />
+                    </div>
+
+                    <div style={{ maxHeight: "240px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {merchantProducts
+                        .filter(p => !merchantProductSearch || p.name?.toLowerCase().includes(merchantProductSearch.toLowerCase()) || p.productCode?.toLowerCase().includes(merchantProductSearch.toLowerCase()))
+                        .map(p => {
+                          const imgSrc = p.images?.[0]?.url || (typeof p.images?.[0] === 'string' ? p.images[0] : null);
+                          return (
+                            <div
+                              key={p.id || p.styleGroupId || p._id}
+                              onClick={() => handleSelectMerchantProduct(p)}
+                              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-surface)", cursor: "pointer", transition: "all 0.15s" }}
+                              className="hover:border-blue-500 hover:bg-slate-50/5"
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                {imgSrc ? (
+                                  <img src={imgSrc} alt="" style={{ width: "40px", height: "40px", borderRadius: "6px", objectFit: "cover" }} />
+                                ) : (
+                                  <div style={{ width: "40px", height: "40px", borderRadius: "6px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b7280" }}>
+                                    <ImageIcon size={16} />
+                                  </div>
+                                )}
+                                <div>
+                                  <div style={{ fontWeight: 600, fontSize: "13px" }}>{p.name}</div>
+                                  <div style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
+                                    {p.category || p.categoryId?.name || 'Category'} • ₹{p.price || p.mrp || 0} {p.color?.name ? `• ${p.color.name}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleSelectMerchantProduct(p); }}
+                                className="primary-btn"
+                                style={{ padding: "6px 12px", fontSize: "12px" }}
+                              >
+                                Link Product
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Autocomplete Catalog Link Bar (Only show if not doing copyFrom and not warehouse operator) */}
+        {!copyFrom && merchant?.accountType !== 'warehouse' && (
           <div className="products-card" style={{ marginBottom: "var(--space-6)", position: "relative" }}>
             <div className="products-header" style={{ marginBottom: "var(--space-4)" }}>
               <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 700 }}>Link to Global Product Catalog</h2>
@@ -633,25 +895,74 @@ const AddNewProduct = () => {
                   <h4 style={{ fontWeight: 600, marginBottom: "var(--space-4)" }}>Category Attributes</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {dynamicAttributes.map(attr => {
-                      const selectedVal = attributes.find(a => a.attributeId === attr._id)?.value ?? '';
+                      const selectedVal = attributes.find(a => {
+                        const existingId = typeof a.attributeId === 'object'
+                          ? ((a.attributeId as any)?._id || (a.attributeId as any)?.id)
+                          : (a.attributeId || (a as any).attribute);
+                        return String(existingId) === String(attr._id);
+                      })?.value ?? '';
                       return (
                         <div key={attr._id} className="form-group">
                           <label>{attr.name} {attr.isRequired && <span className="required">*</span>}</label>
                           {attr.inputType === 'select' && (
                             <div className="select-wrapper">
-                              <select value={selectedVal as string} onChange={e => handleAttributeChange(attr._id, e.target.value)} required={attr.isRequired}>
+                              <select
+                                value={selectedVal as string}
+                                onChange={e => handleAttributeChange(attr._id, e.target.value)}
+                                required={attr.isRequired}
+                              >
                                 <option value="">Select {attr.name}</option>
                                 {attr.values?.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
                               </select>
                               <ChevronDown className="select-icon" />
                             </div>
                           )}
+                          {attr.inputType === 'multiselect' && (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {attr.values?.map(v => {
+                                const isChecked = Array.isArray(selectedVal) && selectedVal.includes(v.value);
+                                return (
+                                  <button
+                                    key={v.value}
+                                    type="button"
+                                    onClick={() => handleAttributeChange(attr._id, v.value, true)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                                      isChecked
+                                        ? 'bg-blue-600 border-blue-500 text-white'
+                                        : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                                    }`}
+                                  >
+                                    {v.label || v.value}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                           {(attr.inputType === 'text' || attr.inputType === 'number') && (
-                            <input type={attr.inputType} value={selectedVal} onChange={e => handleAttributeChange(attr._id, attr.inputType === 'number' ? Number(e.target.value) : e.target.value)} required={attr.isRequired} />
+                            <input
+                              type={attr.inputType}
+                              value={selectedVal}
+                              onChange={e => handleAttributeChange(attr._id, attr.inputType === 'number' ? Number(e.target.value) : e.target.value)}
+                              required={attr.isRequired}
+                            />
                           )}
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Linked Product Attributes preview fallback */}
+              {attributes.length > 0 && dynamicAttributes.length === 0 && (
+                <div style={{ background: "var(--color-bg)", padding: "var(--space-4)", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", marginBottom: "var(--space-6)" }}>
+                  <h4 style={{ fontWeight: 600, marginBottom: "var(--space-2)", fontSize: "13px" }}>Imported Attributes ({attributes.length})</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {attributes.map((a, idx) => (
+                      <span key={idx} className="px-2.5 py-1 rounded bg-blue-600/10 text-blue-400 border border-blue-500/20 text-xs">
+                        {Array.isArray(a.value) ? a.value.join(', ') : String(a.value || '')}
+                      </span>
+                    ))}
                   </div>
                 </div>
               )}
@@ -735,33 +1046,6 @@ const AddNewProduct = () => {
                   <button type="button" onClick={addTag} className="secondary-btn">Add</button>
                 </div>
               </div>
-
-              {/* Warehouse Settings */}
-              {merchant?.accountType === 'warehouse' && (
-                <div style={{ background: "rgba(56, 189, 248, 0.05)", padding: "20px", borderRadius: "8px", border: "1px solid rgba(56, 189, 248, 0.2)", marginTop: "20px" }}>
-                  <h3 style={{ marginBottom: "16px", fontSize: "16px", color: "var(--color-primary)" }}>Warehouse Settings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="form-group">
-                      <label>Source Merchant (Consignment Owner) <span className="required">*</span></label>
-                      <div className="select-wrapper">
-                        <select required value={selectedMerchantId} onChange={(e) => setSelectedMerchantId(e.target.value)}>
-                          <option value="">-- Select Merchant --</option>
-                          {merchants.map(m => (
-                            <option key={m._id} value={m._id}>
-                              {m.shopName} {m.warehouseStatus === 'approved' ? '✓ (Approved)' : m.warehouseStatus === 'pending' ? '⏳ (Pending)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown className="select-icon" />
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Warehouse Commission (%)</label>
-                      <input type="number" min="0" max="100" value={commissionRate} onChange={(e) => setCommissionRate(e.target.value)} placeholder="Leave empty for default" />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 

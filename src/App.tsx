@@ -35,7 +35,6 @@ const ZipCovers = lazy(() => import("./pages/ZipCovers"));
 
 // Warehouse Pages
 const WarehouseDashboard = lazy(() => import("./pages/warehouse/WarehouseDashboard"));
-const WarehouseOrderManagement = lazy(() => import("./pages/warehouse/WarehouseOrderManagement"));
 const WarehouseInventory = lazy(() => import("./pages/warehouse/WarehouseInventory"));
 const MerchantWarehouseStock = lazy(() => import("./pages/warehouse/MerchantWarehouseStock"));
 
@@ -125,7 +124,7 @@ const AppRoot: React.FC = () => {
                   
                   {/* Warehouse Routes */}
                   <Route path="warehouse-dashboard" element={<WarehouseDashboard />} />
-                  <Route path="warehouse-orders" element={<WarehouseOrderManagement />} />
+                  <Route path="warehouse-orders" element={<OrderManagement />} />
                   <Route path="warehouse-products" element={<WarehouseInventory />} />
 
                   <Route index element={<Navigate to="dashboard" />} />
